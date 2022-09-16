@@ -70,7 +70,7 @@ class MCTPWrapper():
         cmd.extend(packet_header)
 
         if verbose:
-            print(" ".join(cmd))
+            print("Running: " + " ".join(cmd))
 
         try:
             res = subprocess.run(["python", "-c", "\"print(123)\""], capture_output=True, text=True)
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     parser.add_argument('--command', help='', type=int, default=0, required=False)
     parser.add_argument('--channel_id', help='', type=int, default=0, required=False)
     parser.add_argument('--pay_len', help='', type=int, default=0, required=False)
-    parser.add_argument('--ncsi_cmdstring', help='A command string that fill values automatically', type=str, required=False)
+    parser.add_argument('--ncsi_cmdstring', help='A NCSI command string that fills values automatically', type=str, required=False)
     args = vars(parser.parse_args())
     m = MCTPWrapper()
     m.run(**args)
