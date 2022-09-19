@@ -99,7 +99,6 @@ class MCTPWrapper():
 
         try:
             #res = subprocess.run(["python", "-c", "\"print(123)\""], capture_output=True, text=True)
-            #res = subprocess.run(["python", "-c", "\"print(123)\""], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             #res = subprocess.run(["dir"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             res = subprocess.run(cmd, capture_output=True, text=True)
             #print(res.stderr)
@@ -159,7 +158,8 @@ if __name__ == "__main__":
     parser.add_argument('--command', help='', type=int, default=0, required=False)
     parser.add_argument('--channel_id', help='', type=int, default=0, required=False)
     parser.add_argument('--pay_len', help='', type=int, default=0, required=False)
-    parser.add_argument('--ncsi_cmdstring', help='A NCSI command string that fills values automatically', type=str, required=False)
+    parser.add_argument('--ncsi_cmdstring', help='A NCSI command string fills values automatically',
+                        type=str, required=False)
     args = vars(parser.parse_args())
     m = MCTPWrapper()
     m.run(**args)
