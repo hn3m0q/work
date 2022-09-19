@@ -97,10 +97,10 @@ class MCTPWrapper():
             print("Running: " + " ".join(cmd))
 
         try:
-            res = subprocess.run(["python", "-c", "\"print(123)\""], capture_output=True, text=True)
+            #res = subprocess.run(["python", "-c", "\"print(123)\""], capture_output=True, text=True)
             #res = subprocess.run(["python", "-c", "\"print(123)\""], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             #res = subprocess.run(["dir"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            #res = subprocess.run(cmd, capture_output=True, text=True)
+            res = subprocess.run(cmd, capture_output=True, text=True)
             #print(res.stderr)
             #print("-------------")
 
@@ -126,7 +126,7 @@ class MCTPWrapper():
             self.response['Payload'] = self.raw_reponse_list[i+14:]
 
             # TODO parse for each example
-            if ncsi_cmdstring = 'temperature --':
+            if ncsi_cmdstring == 'temperature --':
                 #self.response[''][''] =
                 pass
 
