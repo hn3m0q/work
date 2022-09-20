@@ -5,7 +5,12 @@ import argparse
 
 class MCTPWrapper():
     def __init__(self):
-
+        self.mc_id = None
+        self.hrd_rv = None
+        self.iid = None
+        self.command = None
+        self.channel_id = None
+        self.pay_len = None
 
         # TODO: enum in python?
         self.msg_type = {'MCTP': 0, 'PLDM':1, 'NCSI':2, 'ETH':3, 'NVME':4, 'SPDM':5, 'SecMsg':6}
@@ -29,6 +34,12 @@ class MCTPWrapper():
         self.response = dict()
         self.raw_response = None
         self.raw_response_list = None
+
+        self.ncsi_res_parser = {'get temperature': {4:'payloadversion',
+                                                    5:'command id',
+                                                    6:'maximum temperature',
+                                                    7:'current temperature'}}
+
         """
         self.response_parse_list = ["MCTP transport header",
                                     "MCTP header",
@@ -57,13 +68,20 @@ class MCTPWrapper():
     def run(self, verbose=True, bus=3, dst_eid=0, msg_type='NCSI', cml_decode_response=True,
             slave_addr=55, mc_id=0, hrd_rv=1, iid=1, command=0, channel_id=0, pay_len=0,
             ncsi_cmdstring=None):
-        # override variables if cmd_string is defined
-        if ncsi_cmdstring:
-            for k in self.ncsi_commands[ncsi_cmdstring]:
-                if self.ncsi_commands[ncsi_cmdstring][k]:
-                    vars()[k] = self.ncsi_commands[ncsi_cmdstring][k]
 
-        parsed_pay_len = self.dec_to_2_hex_str(pay_len)
+        self.mc_id = mc_id
+        self.hrd_rv = hrd_rv
+        self.iid = iid
+        self.command = command
+        self.channel_id = channel_id
+        self.pay_len = pay_len
+
+        # override variables if cmd_string is defined
+        if ncsi_cmdstring in self.ncsi_commands:
+            for k in self.ncsi_commands[ncsi_cmdstring]:
+                setattr(self, k, self.ncsi_commands[ncsi_cmdstring][k])
+
+        parsed_pay_len = self.dec_to_2_hex_str(self.pay_len)
 
         cmd = ["mctp-util"]
 
@@ -82,12 +100,12 @@ class MCTPWrapper():
         packet_header = list()
 
         # MC_ID, HDR_RV, RESV, IID
-        packet_header.append(str(mc_id))            # MC_ID,
-        packet_header.append(str(hrd_rv)),          # HDR_RV
-        packet_header.append("0")                   # RSVD
-        packet_header.append(str(iid))              # IID
-        packet_header.append(str(command))          # CMD
-        packet_header.append(str(channel_id))       # CHANNEL_ID
+        packet_header.append(str(self.mc_id))            # MC_ID,
+        packet_header.append(str(self.hrd_rv)),          # HDR_RV
+        packet_header.append("0")                        # RSVD
+        packet_header.append(str(self.iid))              # IID
+        packet_header.append(str(self.command))          # CMD
+        packet_header.append(str(self.channel_id))       # CHANNEL_ID
         packet_header.extend(list(parsed_pay_len))  # PAYLOAD_LEN[12:8], PAYLOAD_LEN[7:0]
         packet_header.extend(["0"] * 8)             # RSVD[63:0]
 
@@ -128,9 +146,9 @@ class MCTPWrapper():
             self.response['Payload'] = self.raw_response_list[i+14:]
 
             # TODO parse for each example
-            if ncsi_cmdstring == 'temperature --':
-                #self.response[''][''] =
-                pass
+            if ncsi_cmdstring in self.ncsi_res_parser:
+                for k, v in self.ncsi_res_parser[ncsi_cmdstring].items():
+                    self.response['NCSI Payload Parser'][v] = self.response['Payload'][k]
 
             if verbose:
                 print("Response:")

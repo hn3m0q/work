@@ -1,0 +1,751 @@
+Version 2:
+- Add 4 bytes padding in the NCSI request packet.
+- Add MCTP over SMBUS raw data debug message
+
+===Octeon Linux setting===
+1.Insert the Octeon shared memory kernel module:
+  "insmod shm-channel.ko"
+
+2.Using the hexdump tool to check if the Kernel to MCP channel in the shared memory establish:
+  "hexdump -C -s 0x70040000 -n 0x1000 /dev/mem"
+
+  If everything worked fine, then the "ktom" magic string should be deployed to the share memory as following result:
+    70040000  6b 74 6f 6d 13 00 00 00  00 00 00 00 00 00 00 00  |ktom............|
+    70040010  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+    *
+    70041000
+
+===Octeon Linux userspace tool===
+1.Userspace kernel to MCP channel access utility usage:
+  "channel-util -h"
+    -h                                               Help message.
+    -c                                               Reset the channel.
+    -d [type]                                        Remove the given type data from the channel.
+    -r [type] [data0] [data1] [data2] ...            Insert the given type data to the channel.
+    -b [index] [data]                                Insert the byte data to the channel.
+    -s [index] [string]                              Insert the string to the channel.
+    -n [oem id] [channel] [command type] [data0] ... Insert the NCSI response record.
+    -w [oem id] [channel] [command type]             Wipe the NCSI response record.
+    [type]                                           Fields Type 0x00 - 0xff
+    [index]                                          Type Index 0x00 - 0x1f
+    [oem id]                                         NCSI OEM ID.
+       0                                             - Standard NCSI
+       1                                             - DELL NCSI (Manufacturer ID 0x02A2)
+
+Note: The MCP FW will looking for the NCSI record only when the request NCSI command needs the Kernel to fill in the response data.
+Besides, the MCP FW will based on the request NCIS command is package-level or channel level to determine the searched NCSI record channel ID.
+The channel ID of the package-level NCSI command record must be 0x1f, and the channel-level NCSI command record is channel specifics.
+
+2.POST standard NCSI record usage:
+  channel-util -n 0 <channel ID> <payload>
+  e.g., "channel-util -n 0 0x01 0x95 0xf1 0xf1 0xf1 0x00 0x00 0x00 0x00 0x00 0x4f 0x43 0x54 0x45 0x4f 0x4e 0x20 0x42 /
+      0x45 0x54 0x41 0x00 0x01 0x01 0x00 0xa0 0xaa 0xaa 0xbb 0xbb 0xcc 0xcc 0xdd 0xdd 0x00 0x00 0x02 0xa2"
+    <OEM ID = 0> <channel id = 1> <command typ = 0x95> <NCSI version = 1.1.1.0> <reserved = 0 0 0 Alpha2 = 0> /
+    <Firmware name string = OCTEON BETA> <Firmware version = 01.01.00.a0> <PCI DID = 0xaaaa> <PCI VID = 0xbbbb> /
+    <PCI SSID = 0xcccc> <PCI SVID = 0xdddd> <Manufacturer ID = 0x000002a2>
+    post Get Version ID response (0x95) channel 0 record.
+
+Note: The standard NCSI command record only required the NCSI response command payload.
+(NCSI control packet header and the checksum will be responsible by the MCP FW)
+
+3.POST DELL OEM NCSI record usage:
+  channel-util -n 1 <channel ID> <payload>
+  e.g., "channel-util -n 1 0x1f 0x1a 0x02 0x1a 0x00 0x04"
+    <OEM ID = 1> <channel id = 0x1f> <command id = 0x1a> <payload version = 0x02> <command id = 0x1a> /
+    <Supported Versions = 4>
+    post Get Supported Payload Version Response (0x1A) channel 0x1f record.
+
+Note: The OEM NCSI command record only required the NCSI command payload but without the DELL Manufacture ID.
+(NCSI control packet header and the checksum will be responsible by the MCP FW)
+
+===OpenBMC MCTP over SMBUS tool===
+1.openbmc mctp-util usage:
+  "mctp-util -h"
+    Usage: mctp-util [options] <bus#> <dst_eid> <type> <cmd payload>
+    Sends MCTP data over SMbus
+    Options
+           -h             this help
+           -d             decode response
+           -s <addr>      slave address (Hex). Default: 0x32
+           -d             decode response
+    Command fields
+           <bus#>         I2C Bus number
+           <dst_eid>      destination EID
+           <type>         MCTP message type
+               0            - MCTP Control Message
+               1            - PLDM
+               2            - NC-SI
+               3            - Ethernet
+               4            - NVME
+               5            - SPDM
+               6            - Secured Messages
+
+2.NCSI over MCTP over SMBUS command format:
+  mctp-util -s <addr> <bus> <dst_eid> <type> <packet header(16 bytes)> ... /
+  <payload(optional)> <payload pad(optional)> <checksum(31:24)> <checksum(23:16)>
+  <checksum(15:8)> <checksum(7:0)>
+
+3.NCSI packet header formats:
+  <mc_id> <hdr_rev> <reserved> <iid> <cmd> <channel_id> <pay_len(12:8)> <pay_len(7:0)> /
+  <reserved(63:56)> <reserved(55:48)> <reserved(47:40)> <reserved(39:32)> /
+  <reserved(31:24)> <reserved(23:16)> <reserved(15:8)> <reserved(7:0)>
+
+===NCSI command request/response and shared memory NCSI record populate example===
+1.Clear Initial State example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 E8 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 01 80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 84 
+    raw response:
+    00 19 02 00 01 00 01 80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(01), Packet Type(80), Channel(00), Payload Length(00)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+2.Select Package example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 2 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 02 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 8F 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 02 81 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 E3 
+    raw response:
+    00 19 02 00 01 00 02 81 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(02), Packet Type(81), Channel(00), Payload Length(00)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+3.Deselect Package example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 3 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 03 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 3F 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 03 82 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 53 
+    raw response:
+    00 19 02 00 01 00 03 82 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(03), Packet Type(82), Channel(00), Payload Length(00)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+4.Enable Channel example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 4 3 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 04 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 41 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 04 83 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2D 
+    raw response:
+    00 19 02 00 01 00 04 83 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(04), Packet Type(83), Channel(00), Payload Length(00)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+5.Disable Channel example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 5 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 05 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 41 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 05 84 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2D 
+    raw response:
+    00 19 02 00 01 00 05 84 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(05), Packet Type(84), Channel(00), Payload Length(00)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+6.Reset Channel example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 6 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 06 05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 26 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 06 85 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 4A 
+    raw response:
+    00 19 02 00 01 00 06 85 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(06), Packet Type(85), Channel(00), Payload Length(00)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+7.Enable Channel Network TX example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 7 6 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 07 06 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 96 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 07 86 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 9C 
+    raw response:
+    00 19 02 00 01 00 07 86 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(07), Packet Type(86), Channel(00), Payload Length(00)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+8.Disable Channel Network TX example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 8 7 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 08 07 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 DA 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 08 87 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 D0 
+    raw response:
+    00 19 02 00 01 00 08 87 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(08), Packet Type(87), Channel(00), Payload Length(00)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+9.Set Link example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 9 9 0 0 8 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 09 09 00 00 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 70 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 09 89 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 9B 
+    raw response:
+    00 19 02 00 01 00 09 89 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(09), Packet Type(89), Channel(00), Payload Length(00)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+10.Get Link Status example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0xa 0xa 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 0A 0A 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 AE 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 0A 8A 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 A4 
+    raw response:
+    00 19 02 00 01 00 0a 8a 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(0a), Packet Type(8a), Channel(00), Payload Length(00)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+11.Set VLAN Filter example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0xb 0xb 0 0 8 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 0B 0B 00 00 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 5D 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 0B 8B 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 4C 
+    raw response:
+    00 19 02 00 01 00 0b 8b 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(0b), Packet Type(8b), Channel(00), Payload Length(00)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+12.Enable VLAN example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0xc 0xc 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 22 21 01 00 08 C8 02 00 01 00 0C 0C 00 00 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 B8 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 0C 8C 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 DA 
+    raw response:
+    00 19 02 00 01 00 0c 8c 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(0c), Packet Type(8c), Channel(00), Payload Length(00)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+13.Disable VLAN example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0xd 0xd 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 0D 0D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 38 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 0D 8D 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 32 
+    raw response:
+    00 19 02 00 01 00 0d 8d 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(0d), Packet Type(8d), Channel(00), Payload Length(00)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+14.Set MAC Address example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0xe 0xe 0 0 8 0 0 0 0 0 0 0 0 0x66 0x55 0x44 0x33 0x22 0x11 1 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 0E 0E 00 00 08 00 00 00 00 00 00 00 00 66 55 44 33 22 11 01 00 00 00 00 00 00 00 00 00 30 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 0E 8E 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 0D 
+    raw response:
+    00 19 02 00 01 00 0e 8e 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(0e), Packet Type(8e), Channel(00), Payload Length(00)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+15.Enable Broadcast Filtering example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0xf 0x10 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 22 21 01 00 08 C8 02 00 01 00 0F 10 00 00 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 68 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 0F 90 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 88 
+    raw response:
+    00 19 02 00 01 00 0f 90 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(0f), Packet Type(90), Channel(00), Payload Length(00)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+16.Disable Broadcast Filtering example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x10 0x11 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 10 11 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 AA 
+    smbus: <RX< 20 0F 1E AB 01 08 00 C0 02 00 01 00 10 91 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 A0 
+    raw response:
+    00 19 02 00 01 00 10 91 00 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(19)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(10), Packet Type(91), Channel(00), Payload Length(00)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 
+
+17.Get Version ID example (channel level):
+  Populate NCSI record to the shared memory:
+    "channel-util -n 0 0x01 0x95 0xf1 0xf1 0xf1 0x00 0x00 0x00 0x00 0x00 0x4f 0x43 0x54 0x45 0x4f 0x4e 0x20 0x42 /
+      0x45 0x54 0x41 0x00 0x01 0x01 0x00 0xa0 0xaa 0xaa 0xbb 0xbb 0xcc 0xcc 0xdd 0xdd 0x00 0x00 0x02 0xa2"
+      <OEM ID = 0> <channel id = 1> <command typ = 0x95> <NCSI version = 1.1.1.0> <reserved = 0 0 0 Alpha2 = 0> /
+      <Firmware name string = OCTEON BETA> <Firmware version = 01.01.00.a0> <PCI DID = 0xaaaa> <PCI VID = 0xbbbb> /
+      <PCI SSID = 0xcccc> <PCI SVID = 0xdddd> <Manufacturer ID = 0x000002a2>
+
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x11 0x15 0x01 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 11 15 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 08 
+    smbus: <RX< 20 0F 42 AB 01 08 00 C0 02 00 01 00 11 95 01 00 24 00 00 00 00 00 00 00 00 00 00 00 00 F1 F1 F1 00 00 00 00 00 4F 43 54 45 4F 4E 20 42 45 54 41 00 01 01 00 A0 AA AA BB BB CC CC DD DD 00 00 02 A2 00 00 00 00 B7 
+    raw response:
+    00 3d 02 00 01 00 11 95 01 00 24 00 00 00 00 00 00 00 00 00 00 00 00 f1 f1 f1 00 00 00 00 00 4f 43 54 45 4f 4e 20 42 45 54 41 00 01 01 00 a0 aa aa bb bb cc cc dd dd 00 00 02 a2 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(3d)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(11), Packet Type(95), Channel(01), Payload Length(24)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : f1 f1 f1 00 00 00 00 00 4f 43 54 45 4f 4e 20 42 45 54 41 00 01 01 00 a0 aa aa bb bb cc cc dd dd 00 00 02 a2 00 00 00 00 
+
+18.DELL OEM Set Address example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x13 0x50 0 0x00 0x10 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x07 0 1 6 11 22 33 44 55 66 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 2E 21 01 00 08 C8 02 00 01 00 13 50 00 00 10 00 00 00 00 00 00 00 00 00 00 02 A2 02 07 00 01 06 0B 16 21 2C 37 42 00 00 00 00 00 00 00 00 00 FC 
+    smbus: <RX< 20 0F 26 AB 01 08 00 C0 02 00 01 00 13 D0 00 00 06 00 00 00 00 00 00 00 00 00 01 80 06 00 00 02 A2 02 07 00 00 00 00 00 00 F7 
+    raw response:
+    00 21 02 00 01 00 13 d0 00 00 06 00 00 00 00 00 00 00 00 00 01 80 06 00 00 02 a2 02 07 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(21)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(13), Packet Type(d0), Channel(00), Payload Length(06)
+      Response: COMMAND_FAILED(0x0001)
+      Reason:   unknown_reason(0x8006)
+      Payload       : 00 00 02 a2 02 07 00 00 00 00 00 00 
+
+19.DELL OEM Get Address example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x14 0x50 0 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x08 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 14 50 00 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 08 00 00 00 00 00 00 00 00 00 00 67 
+    smbus: <RX< 20 0F 26 AB 01 08 00 C0 02 00 01 00 14 D0 00 00 06 00 00 00 00 00 00 00 00 00 01 80 05 00 00 02 A2 02 08 00 00 00 00 00 00 78 
+    raw response:
+    00 21 02 00 01 00 14 d0 00 00 06 00 00 00 00 00 00 00 00 00 01 80 05 00 00 02 a2 02 08 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(21)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(14), Packet Type(d0), Channel(00), Payload Length(06)
+      Response: COMMAND_FAILED(0x0001)
+      Reason:   unknown_reason(0x8005)
+      Payload       : 00 00 02 a2 02 08 00 00 00 00 00 00 
+
+20.DELL OEM Get Passthrough Control example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x15 0x50 0 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x0c 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 15 50 00 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 0C 00 00 00 00 00 00 00 00 00 00 34 
+    smbus: <RX< 20 0F 26 AB 01 08 00 C0 02 00 01 00 15 D0 00 00 06 00 00 00 00 00 00 00 00 00 01 80 07 00 00 02 A2 02 0C 00 00 00 00 00 00 0D 
+    raw response:
+    00 21 02 00 01 00 15 d0 00 00 06 00 00 00 00 00 00 00 00 00 01 80 07 00 00 02 a2 02 0c 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(21)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(15), Packet Type(d0), Channel(00), Payload Length(06)
+      Response: COMMAND_FAILED(0x0001)
+      Reason:   unknown_reason(0x8007)
+      Payload       : 00 00 02 a2 02 0c 00 00 00 00 00 00 
+
+21.DELL OEM Enable OutOfBox WOL example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x16 0x50 0 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x15 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 16 50 00 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 15 00 00 00 00 00 00 00 00 00 00 55 
+    smbus: <RX< 20 0F 26 AB 01 08 00 C0 02 00 01 00 16 D0 00 00 06 00 00 00 00 00 00 00 00 00 03 00 00 00 00 02 A2 02 15 00 00 00 00 00 00 CB 
+    raw response:
+    00 21 02 00 01 00 16 d0 00 00 06 00 00 00 00 00 00 00 00 00 03 00 00 00 00 02 a2 02 15 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(21)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(16), Packet Type(d0), Channel(00), Payload Length(06)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 02 a2 02 15 00 00 00 00 00 00 
+
+22.DELL OEM Disable OutOfBox WOL example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x17 0x50 0 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x16 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 17 50 00 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 16 00 00 00 00 00 00 00 00 00 00 5B 
+    smbus: <RX< 20 0F 26 AB 01 08 00 C0 02 00 01 00 17 D0 00 00 06 00 00 00 00 00 00 00 00 00 03 00 00 00 00 02 A2 02 16 00 00 00 00 00 00 82 
+    raw response:
+    00 21 02 00 01 00 17 d0 00 00 06 00 00 00 00 00 00 00 00 00 03 00 00 00 00 02 a2 02 16 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(21)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(17), Packet Type(d0), Channel(00), Payload Length(06)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 02 a2 02 16 00 00 00 00 00 00 
+
+23.DELL OEM Get LLDP example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x18 0x50 0 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x28 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 18 50 00 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 28 00 00 00 00 00 00 00 00 00 00 4D 
+    smbus: <RX< 20 0F 26 AB 01 08 00 C0 02 00 01 00 18 D0 00 00 06 00 00 00 00 00 00 00 00 00 03 00 00 00 00 02 A2 02 28 00 00 00 00 00 00 64 
+    raw response:
+    00 21 02 00 01 00 18 d0 00 00 06 00 00 00 00 00 00 00 00 00 03 00 00 00 00 02 a2 02 28 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(21)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(18), Packet Type(d0), Channel(00), Payload Length(06)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 02 a2 02 28 00 00 00 00 00 00 
+
+24.DELL OEM Send Ethernet Frame example:
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x19 0x50 0 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x2b 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 19 50 00 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 2B 00 00 00 00 00 00 00 00 00 00 43 
+    smbus: <RX< 20 0F 26 AB 01 08 00 C0 02 00 01 00 19 D0 00 00 06 00 00 00 00 00 00 00 00 00 03 00 00 00 00 02 A2 02 2B 00 00 00 00 00 00 2D 
+    raw response:
+    00 21 02 00 01 00 19 d0 00 00 06 00 00 00 00 00 00 00 00 00 03 00 00 00 00 02 a2 02 2b 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(21)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(19), Packet Type(d0), Channel(00), Payload Length(06)
+      Response: COMMAND_UNSUPPORTED(0x0003)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 02 a2 02 2b 00 00 00 00 00 00 
+
+25.DELL OEM Get Inventory example(channel level):
+  Populate NCSI record to the shared memory:
+    "channel-util -n 1 0x01 0x00 0x02 0x00 0x00 0x00 0xf3 0xf7 0x10 0xff 0xff 0xff 0xff 0xff 0x00 0x23 0x57 0x69 /
+      0x64 0x67 0x65 0x74 0x41 0x42 0x43 0x44 0x20 0x31 0x30 0x47 0x42 0x20 0x45 0x74 0x68 0x65 0x72 0x6E 0x65 /
+      0x74 0x20 0x43 0x6F 0x6E 0x74 0x72 0x6F 0x6C 0x6C 0x65 0x72"
+      <OEM ID = 1> <channel id = 1> <command id = 0x00> <payload version = 0x02> <command id = 0x00> <media type = 0x0000> /
+      <Firmware family version = 3.7.10.FF> <reserved = 0xffffffff> <type-length.type = 0x00> <type-length.length = 0x23> /
+      <Device name = WidgetABCD 10GB Ethernet Controller>
+
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x1a 0x50 1 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x00 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 1A 50 01 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 00 00 00 00 00 00 00 00 00 00 00 3C 
+    smbus: <RX< 20 0F 56 AB 01 08 00 C0 02 00 01 00 1A D0 01 00 35 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 A2 02 00 00 00 F3 F7 10 FF FF FF FF FF 00 23 57 69 64 67 65 74 41 42 43 44 20 31 30 47 42 20 45 74 68 65 72 6E 65 74 20 43 6F 6E 74 72 6F 6C 6C 65 72 00 00 00 00 00 00 00 17 
+    raw response:
+    00 51 02 00 01 00 1a d0 01 00 35 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 a2 02 00 00 00 f3 f7 10 ff ff ff ff ff 00 23 57 69 64 67 65 74 41 42 43 44 20 31 30 47 42 20 45 74 68 65 72 6e 65 74 20 43 6f 6e 74 72 6f 6c 6c 65 72 00 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(51)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(1a), Packet Type(d0), Channel(01), Payload Length(35)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 02 a2 02 00 00 00 f3 f7 10 ff ff ff ff ff 00 23 57 69 64 67 65 74 41 42 43 44 20 31 30 47 42 20 45 74 68 65 72 6e 65 74 20 43 6f 6e 74 72 6f 6c 6c 65 72 00 00 00 00 00 00 00 
+
+26.DELL OEM Get Extended Capabilities example(channel level):
+  Populate NCSI record to the shared memory:
+    "channel-util -n 1 0x02 0x01 0x02 0x01 0xaa 0xbb 0xcc 0xdd 0x00 0x11 0x22 0x33 0x4 0x5"
+      <OEM ID = 1> <channel id = 2> <command id = 0x01> <payload version = 0x02> <command id = 0x00> /
+      <capabilities(31:16) = 0xaabb> <capabilities(15:0) = 0xccdd> /
+      <reserved = 0x00> <DCB capabilities = 0x11> <NIC Partitioning capabilities = 0x22> /
+      <E-switch capabilities = 0x33> <Number of PCI Physical functions = 0x4> <Number of PCI Virtual functions = 0x5>
+
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x1b 0x50 2 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x01 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 1B 50 02 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 01 00 00 00 00 00 00 00 00 00 00 4E 
+    smbus: <RX< 20 0F 2E AB 01 08 00 C0 02 00 01 00 1B D0 02 00 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 A2 02 01 AA BB CC DD 00 11 22 33 04 05 00 00 00 00 D1 
+    raw response:
+    00 29 02 00 01 00 1b d0 02 00 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 a2 02 01 aa bb cc dd 00 11 22 33 04 05 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(29)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(1b), Packet Type(d0), Channel(02), Payload Length(10)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 02 a2 02 01 aa bb cc dd 00 11 22 33 04 05 00 00 00 00 
+
+27.DELL OEM Get Partition Information example(channel level):
+  Populate NCSI record to the shared memory:
+    "channel-util -n 1 0x03 0x02 0x02 0x02 1 1 0 0 0x00 0x23 0x57 0x69 0x64 0x67 0x65 0x74 0x41 0x42 0x43 0x44 0x20 0x31 0x30 /
+      0x47 0x42 0x20 0x45 0x74 0x68 0x65 0x72 0x6E 0x65 0x74 0x20 0x43 0x6F 0x6E 0x74 0x72 0x6F 0x6C 0x6C 0x65 0x72"
+      <OEM ID = 1> <channel id = 3> <command id = 0x02> <payload version = 0x02> <command id = 0x02> /
+      <Number of PCI Physical Functions Enabled = 0x01> <Partition ID = 0x01>/
+      <Partition Status = 0x0000> <Interface Name Type = 0x00> <length = 0x23>/
+      <Interface Name = WidgetABCD 10Gb Ethernet Controller>
+
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x1c 0x50 3 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x02 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 1C 50 03 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 02 00 00 00 00 00 00 00 00 00 00 9C 
+    smbus: <RX< 20 0F 4E AB 01 08 00 C0 02 00 01 00 1C D0 03 00 2F 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 A2 02 02 01 01 00 00 00 23 57 69 64 67 65 74 41 42 43 44 20 31 30 47 42 20 45 74 68 65 72 6E 65 74 20 43 6F 6E 74 72 6F 6C 6C 65 72 00 00 00 00 00 8A 
+    raw response:
+    00 49 02 00 01 00 1c d0 03 00 2f 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 a2 02 02 01 01 00 00 00 23 57 69 64 67 65 74 41 42 43 44 20 31 30 47 42 20 45 74 68 65 72 6e 65 74 20 43 6f 6e 74 72 6f 6c 6c 65 72 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(49)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(1c), Packet Type(d0), Channel(03), Payload Length(2f)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 02 a2 02 02 01 01 00 00 00 23 57 69 64 67 65 74 41 42 43 44 20 31 30 47 42 20 45 74 68 65 72 6e 65 74 20 43 6f 6e 74 72 6f 6c 6c 65 72 00 00 00 00 00 
+
+28.DELL OEM Get Temperature example:
+  Populate NCSI record to the shared memory:
+    "channel-util -n 1 0x1f 0x13 0x02 0x13 0xff 0x32"
+      <OEM ID = 1> <channel id = 0x1f> <command id = 0x13> <payload version = 0x02> <command id = 0x13> /
+      <Maximum temperature = 255> <Current temperature = 50>
+
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x1d 0x50 0x1f 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x13 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 1D 50 1F 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 13 00 00 00 00 00 00 00 00 00 00 BD 
+    smbus: <RX< 20 0F 26 AB 01 08 00 C0 02 00 01 00 1D D0 1F 00 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 A2 02 13 FF 32 00 00 00 00 EF 
+    raw response:
+    00 21 02 00 01 00 1d d0 1f 00 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 a2 02 13 ff 32 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(21)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(1d), Packet Type(d0), Channel(1f), Payload Length(08)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 02 a2 02 13 ff 32 00 00 00 00 
+
+29.DELL OEM Get Supported Payload Version example:
+  Populate NCSI record to the shared memory:
+    "channel-util -n 1 0x1f 0x1a 0x02 0x1a 0x00 0x04"
+      <OEM ID = 1> <channel id = 0x1f> <command id = 0x1a> <payload version = 0x02> <command id = 0x1a> /
+      <Supported Versions = 4>
+
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x1e 0x50 0x1f 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x1a 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 1E 50 1F 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 1A 00 00 00 00 00 00 00 00 00 00 2B 
+    smbus: <RX< 20 0F 26 AB 01 08 00 C0 02 00 01 00 1E D0 1F 00 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 A2 02 1A 00 04 00 00 00 00 19 
+    raw response:
+    00 21 02 00 01 00 1e d0 1f 00 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 a2 02 1a 00 04 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(21)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(1e), Packet Type(d0), Channel(1f), Payload Length(08)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 02 a2 02 1a 00 04 00 00 00 00 
+
+30.DELL OEM Get OS Driver Version Command example(channel level):
+  Populate NCSI record to the shared memory:
+    "channel-util -n 1 0x01 0x1c 0x02 0x1c 0x01 0x01 0x00 0x04 0xf3 0xf7 0x10 0xff"
+      <OEM ID = 1> <channel id = 1> <command id = 0x1c> <payload version = 0x02> <command id = 0x1c> /
+      <Partition ID = 1> <Number of active drivers in TLVs = 1> <Interface Name Type = 0x00> /
+      <Length = 4> <Value = 3.7.10.FF>
+
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x1f 0x50 0x01 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x1c 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 1F 50 01 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 1C 00 00 00 00 00 00 00 00 00 00 DC 
+    smbus: <RX< 20 0F 2E AB 01 08 00 C0 02 00 01 00 1F D0 01 00 0E 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 A2 02 1C 01 01 00 04 F3 F7 10 FF 00 00 00 00 00 00 15 
+    raw response:
+    00 29 02 00 01 00 1f d0 01 00 0e 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 a2 02 1c 01 01 00 04 f3 f7 10 ff 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(29)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(1f), Packet Type(d0), Channel(01), Payload Length(0e)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 02 a2 02 1c 01 01 00 04 f3 f7 10 ff 00 00 00 00 00 00 
+
+31.DELL OEM Get Interface Information example(channel level):
+  Populate NCSI record to the shared memory:
+    "channel-util -n 1 0x02 0x29 0x02 0x29 0x00 0x01 0x00 0x00 0x00 0x00"
+      <OEM ID = 1> <channel id = 2> <command id = 0x29> <payload version = 0x02> <command id = 0x29> /
+      <Reserved = 0x00> <Interface Type = 1> <Data field byte 0 = 0x00> <Data field byte 1 = 0x00> /
+      <Data field byte 2 = 0x00> <Data field byte 3 = 0x00>
+
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x20 0x50 0x02 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x29 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 20 50 02 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 29 00 00 00 00 00 00 00 00 00 00 54 
+    smbus: <RX< 20 0F 2A AB 01 08 00 C0 02 00 01 00 20 D0 02 00 0C 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 A2 02 29 00 01 00 00 00 00 00 00 00 00 5D 
+    raw response:
+    00 25 02 00 01 00 20 d0 02 00 0c 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 a2 02 29 00 01 00 00 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(25)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(20), Packet Type(d0), Channel(02), Payload Length(0c)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 02 a2 02 29 00 01 00 00 00 00 00 00 00 00 
+
+32.DELL OEM Get Interface Sensor(channel level):
+  Populate NCSI record to the shared memory:
+    "channel-util -n 1 0x03 0x2a 0x02 0x2a 0x00 0xa0 0x00 0xff 0x00 0x80 0x00 0x50 0x00 0x0f 0xff 0xff 0x00 0x20 0x00 0x15 1 2 3 4"
+      <OEM ID = 1> <channel id = 3> <command id = 0x2a> <payload version = 0x02> <command id = 0x2a> /
+      <Status = 0x00> <Identifier = 0xa0> <Temp High Alarm Threshold = 0x00ff> <Temp High Warning Threshold = 0x0080> /
+      <Temperature Value = 0x0050> <Vcc Voltage Value = 0x000f> <TX Bias Current Value = 0xffff> /
+      <TX Output Power Value = 0x0020> <RX Input Power Value = 0x0015> <Flag Byte 1 = 1> <Flag Byte 2 = 2> /
+      <Flag Byte 3 = 3> <Flag Byte 4 = 4>
+
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x21 0x50 0x03 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x2a 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 21 50 03 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 2A 00 00 00 00 00 00 00 00 00 00 64 
+    smbus: <RX< 20 0F 3A AB 01 08 00 C0 02 00 01 00 21 D0 03 00 1A 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 A2 02 2A 00 A0 00 FF 00 80 00 50 00 0F FF FF 00 20 00 15 01 02 03 04 00 00 00 00 00 00 65 
+    raw response:
+    00 35 02 00 01 00 21 d0 03 00 1a 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 a2 02 2a 00 a0 00 ff 00 80 00 50 00 0f ff ff 00 20 00 15 01 02 03 04 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(35)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(21), Packet Type(d0), Channel(03), Payload Length(1a)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 02 a2 02 2a 00 a0 00 ff 00 80 00 50 00 0f ff ff 00 20 00 15 01 02 03 04 00 00 00 00 00 00 
+
+33.Get Capabilities Example(channel level):
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x22 0x16 0x00 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 22 16 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 4D 
+    smbus: <RX< 20 0F 3A AB 01 08 00 C0 02 00 01 00 22 96 00 00 1C 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00 DE 
+    raw response:
+    00 35 02 00 01 00 22 96 00 00 1c 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(35)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(22), Packet Type(96), Channel(00), Payload Length(1c)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00 
+
+34.Get Parameters Example(channel level):
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x23 0x17 0x00 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 1E 21 01 00 08 C8 02 00 01 00 23 17 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 A5 
+    smbus: <RX< 20 0F 3A AB 01 08 00 C0 02 00 01 00 23 97 00 00 1C 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 61 
+    raw response:
+    00 35 02 00 01 00 23 97 00 00 1c 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(35)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(23), Packet Type(97), Channel(00), Payload Length(1c)
+      Response: COMMAND_COMPLETED(0x0000)
+      Reason:   NO_ERROR(0x0000)
+      Payload       : 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+
+35.DELL OEM Get Interface Sensor(channel level) with Absent SFP case:
+  Wipe NCSI record from the shared memory:
+    "channel-util -w 1 3 0x2a"
+      <OEM ID = 1> <channel id = 3> <command id = 0x2a>
+
+  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x21 0x50 0x03 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x2a 0 0 0 0 0 0 0 0 0 0"
+    smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 21 50 03 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 2A 00 00 00 00 00 00 00 00 00 00 64 
+    smbus: <RX< 20 0F 26 AB 01 08 00 C0 02 00 01 00 21 D0 03 00 06 00 00 00 00 00 00 00 00 00 02 80 05 00 00 02 A2 02 2A 00 00 00 00 00 00 6C 
+    raw response:
+    00 21 02 00 01 00 21 d0 03 00 06 00 00 00 00 00 00 00 00 00 02 80 05 00 00 02 a2 02 2a 00 00 00 00 00 00 
+
+    MCTP transport header: src_eid(00) tag(21)
+    MCTP header:           msg_type(02)
+
+    NCSI control message
+      NCSI header:
+        MC ID(00), Header Revision(01), Rsv(00), IID(21), Packet Type(d0), Channel(03), Payload Length(06)
+      Response: COMMAND_UNAVAILABLE(0x0002)
+      Reason:   unknown_reason(0x8005)
+      Payload       : 00 00 02 a2 02 2a 00 00 00 00 00 00 
