@@ -15,17 +15,24 @@ class MCTPWrapper():
         # TODO: enum in python?
         self.msg_type = {'MCTP': 0, 'PLDM':1, 'NCSI':2, 'ETH':3, 'NVME':4, 'SPDM':5, 'SecMsg':6}
 
-        self.ncsi_commands = {'clear initial state':{'iid':0, 'command':0},
-                              'select package':{'iid':2, 'command':1},
-                              'deselect package':{'iid':3, 'command':2},
-                              'enable channel':{'iid':4, 'command':3},
-                              'disable channel':{'iid':5, 'command':4},
-                              'reset channel':{'iid':6, 'command':5},
-                              'enable channel network tx': {'iid':7, 'command':6},
-                              'disable channel network rx': {'iid':8, 'command':7},
-                              'set link': {'iid':9, 'command':9}, #008} TODO channel_id, paylen[12] paylen[11]
-                              'get link status': {'iid':0xa, 'command':0xa},
-                              'set vlan filter': {'iid':0xb, 'command':0xb}
+        self.ncsi_commands = {'clear initial state':         {'iid':1, 'command':0},
+                              'select package':              {'iid':2, 'command':1},
+                              'deselect package':            {'iid':3, 'command':2},
+                              'enable channel':              {'iid':4, 'command':3},
+                              'disable channel':             {'iid':5, 'command':4},
+                              'reset channel':               {'iid':6, 'command':5},
+                              'enable channel network tx':   {'iid':7, 'command':6},
+                              'disable channel network rx':  {'iid':8, 'command':7},
+                              'set link':                    {'iid':9, 'command':9, 'pay_len':8}, #008} TODO channel_id, paylen[12] paylen[11]
+                              'get link status':             {'iid':0xa, 'command':0xa},
+                              'set vlan filter':             {'iid':0xb, 'command':0xb, 'pay'}, # WRONG cheat sheet
+                              'enable vlan':                 {}, # WRONG
+                              'disable vlan':                {iid:0xd, command:0xd},
+                              'set mac address':             {iid:0xe, command, 0xe, },#WRONG
+                              'enable broadcast filtering':  {iid:0xf, command:0x10}, #wrong
+                              'disable broadcast filtering': {iid:0x19, command:0x11},
+                              'get version id':              {'iid':0x11, 'command': 0x15, 'pay_len':256},#paylen 0x1, 0x0
+                              'dell oem set address':        {''}
         }
 
         self.fixed_val_keys = ['SRC_ID', 'TAG', 'MSG_TYPE', 'MC_ID', 'HeaderRev', 'Rsv', 'IID',
@@ -99,15 +106,15 @@ class MCTPWrapper():
         # start of packet header
         packet_header = list()
 
-        # MC_ID, HDR_RV, RESV, IID
+        # MC_ID, HDR_RV, RESV, IID ...
         packet_header.append(str(self.mc_id))            # MC_ID,
         packet_header.append(str(self.hrd_rv)),          # HDR_RV
         packet_header.append("0")                        # RSVD
         packet_header.append(str(self.iid))              # IID
         packet_header.append(str(self.command))          # CMD
         packet_header.append(str(self.channel_id))       # CHANNEL_ID
-        packet_header.extend(list(parsed_pay_len))  # PAYLOAD_LEN[12:8], PAYLOAD_LEN[7:0]
-        packet_header.extend(["0"] * 8)             # RSVD[63:0]
+        packet_header.extend(list(parsed_pay_len))       # PAYLOAD_LEN[12:8], PAYLOAD_LEN[7:0]
+        packet_header.extend(["0"] * 8)                  # RSVD[63:0]
 
         # add NCSI packet header
         cmd.extend(packet_header)
