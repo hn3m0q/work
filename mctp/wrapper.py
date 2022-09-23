@@ -17,25 +17,30 @@ class MCTPWrapper():
         # TODO: enum in python?
         self.msg_type = {'MCTP': 0, 'PLDM':1, 'NCSI':2, 'ETH':3, 'NVME':4, 'SPDM':5, 'SecMsg':6}
 
-        self.ncsi_commands = {'clear initial state':         {'iid':1,   'command':0},
-                              'select package':              {'iid':2,   'command':1},
-                              'deselect package':            {'iid':3,   'command':2},
-                              'enable channel':              {'iid':4,   'command':3},
-                              'disable channel':             {'iid':5,   'command':4},
-                              'reset channel':               {'iid':6,   'command':5},
-                              'enable channel network tx':   {'iid':7,   'command':6},
-                              'disable channel network rx':  {'iid':8,   'command':7},
-                              'set link':                    {'iid':9,   'command':9, 'pay_len':8}, #008} TODO channel_id, paylen[12] paylen[11]
-                              'get link status':             {'iid':0xa, 'command':0xa},
-                              'set vlan filter':             {'iid':0xb, 'command':0xb, 'pay_len':9999}, # WRONG cheat sheet
-                              'enable vlan':                 {}, # WRONG
-                              'disable vlan':                {'iid':0xd,  'command':0xd},
-                              'set mac address':             {'iid':0xe,  'command':0xe,},#WRONG
-                              'enable broadcast filtering':  {'iid':0xf,  'command':0x10}, #wrong
-                              'disable broadcast filtering': {'iid':0x19, 'command':0x11},
-                              'get version id':              {'iid':0x11, 'command':0x15, 'pay_len':256},#paylen 0x1, 0x0
-                              'dell oem set address':        {''},
-                              'get temperature':             {'iid':0x1d, 'command':0x50, 'channel_id':0x1f, 'pay_len':8, 'payload': '0x00 0x00 0x02 0xa2 0x02 0x13 0 0'}
+        self.ncsi_commands = {
+            'clear initial state':         {'iid':1,    'command':0},
+            'select package':              {'iid':2,    'command':1},
+            'deselect package':            {'iid':3,    'command':2},
+            'enable channel':              {'iid':4,    'command':3},
+            'disable channel':             {'iid':5,    'command':4},
+            'reset channel':               {'iid':6,    'command':5},
+            'enable channel network tx':   {'iid':7,    'command':6},
+            'disable channel network rx':  {'iid':8,    'command':7},
+            'set link':                    {'iid':9,    'command':9,    'pay_len':8}, #008} TODO channel_id, paylen[12] paylen[11]
+            'get link status':             {'iid':0xa,  'command':0xa},
+            'set vlan filter':             {'iid':0xb,  'command':0xb,  'pay_len':8}, # WRONG cheat sheet
+            'enable vlan':                 {'iid':0xc,  'command':0xc,  'pay_len':4}, # WRONG
+            'disable vlan':                {'iid':0xd,  'command':0xd},
+            'set mac address':             {'iid':0xe,  'command':0xe,  'pay_len': 8, 'payload': "0x66 0x55 0x44 0x33 0x22 0x11 1 0"},#WRONG
+            'enable broadcast filtering':  {'iid':0xf,  'command':0x10, 'pay_len': 4}, #wrong
+            'disable broadcast filtering': {'iid':0x10, 'command':0x11},
+            'get version id':              {'iid':0x11, 'command':0x15, 'channel_id':0x01},
+            'dell oem set address':        {'iid':0x13, 'command':0x50, 'pay_len':0x10, 'payload':"0x00 0x00 0x02 0xa2 0x02 0x07 0 1 6 11 22 33 44 55 66 0"},
+            'dell oem get address':        {'iid':0x14, 'command':0x50, 'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x08 0 0'},
+            'dell oem get passthrough':    {'iid':0x15, 'command':0x50, 'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x0c 0 0'},
+            'dell oem enable wol':         {'iid':0x16, 'command':0x50, 'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x15 0 0'},
+            ''
+            'get temperature':             {'iid':0x1d, 'command':0x50, 'channel_id':0x1f, 'pay_len':8, 'payload': '0x00 0x00 0x02 0xa2 0x02 0x13 0 0'}
         }
 
         self.fixed_val_keys = ['SRC_ID', 'TAG', 'MSG_TYPE', 'MC_ID', 'HeaderRev', 'Rsv', 'IID',
