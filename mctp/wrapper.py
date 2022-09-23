@@ -169,6 +169,7 @@ class MCTPWrapper():
 
             # TODO parse for each example
             if ncsi_cmdstring in self.ncsi_res_parser:
+                self.response['NCSI Payload Parser'] = dict()
                 for k, v in self.ncsi_res_parser[ncsi_cmdstring].items():
                     self.response['NCSI Payload Parser'][v] = self.response['Payload'][k]
 
