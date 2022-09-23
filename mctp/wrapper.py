@@ -11,6 +11,8 @@ class MCTPWrapper():
         self.command = None
         self.channel_id = None
         self.pay_len = None
+        self.payload_padding_len = 4
+        self.checksum = '0 0 0 0'
 
         # TODO: enum in python?
         self.msg_type = {'MCTP': 0, 'PLDM':1, 'NCSI':2, 'ETH':3, 'NVME':4, 'SPDM':5, 'SecMsg':6}
@@ -32,7 +34,8 @@ class MCTPWrapper():
                               'enable broadcast filtering':  {'iid':0xf,  'command':0x10}, #wrong
                               'disable broadcast filtering': {'iid':0x19, 'command':0x11},
                               'get version id':              {'iid':0x11, 'command':0x15, 'pay_len':256},#paylen 0x1, 0x0
-                              'dell oem set address':        {''}
+                              'dell oem set address':        {''},
+                              'get temperature':             {'iid':0x1d, 'command':0x50, 'channel_id':0x1f, 'pay_len':8, 'payload': '0x00 0x00 0x02 0xa2 0x02 0x13 0 0'}
         }
 
         self.fixed_val_keys = ['SRC_ID', 'TAG', 'MSG_TYPE', 'MC_ID', 'HeaderRev', 'Rsv', 'IID',
@@ -66,15 +69,15 @@ class MCTPWrapper():
 
     # TODO check
     def dec_to_2_hex_str(self, dec):
-        if dec > 4095: #TODO actually looks like 13 bits?
-            raise ValueError("Payload length has 12 bits, can't be more than 4095.")
+        if dec > 2**13:
+            raise ValueError("Payload length has 13 bits.")
 
         # ([12:8] and [7:0])
         return ("0", str(hex(dec))) if dec < 255 else (str(hex(dec-255)), str(hex(255)))
 
     def run(self, verbose=True, bus=3, dst_eid=0, msg_type='NCSI', cml_decode_response=True,
             slave_addr=55, mc_id=0, hrd_rv=1, iid=1, command=0, channel_id=0, pay_len=0,
-            ncsi_cmdstring=None):
+            payload=None, ncsi_cmdstring=None):
 
         self.mc_id = mc_id
         self.hrd_rv = hrd_rv
@@ -82,6 +85,7 @@ class MCTPWrapper():
         self.command = command
         self.channel_id = channel_id
         self.pay_len = pay_len
+        self.payload = payload
 
         # override variables if cmd_string is defined
         if ncsi_cmdstring in self.ncsi_commands:
@@ -118,6 +122,17 @@ class MCTPWrapper():
 
         # add NCSI packet header
         cmd.extend(packet_header)
+
+        # payload
+        #print(self.pay_len, self.payload)
+        if self.payload:
+            cmd.extend(self.payload.split(' '))
+
+        # payload padding
+        cmd.extend(['0']*self.payload_padding_len)
+
+        # checksum
+        cmd.extend(self.checksum.split(' '))
 
         if verbose:
             print("Running: " + " ".join(cmd))
@@ -183,6 +198,7 @@ if __name__ == "__main__":
     parser.add_argument('--command', help='', type=int, default=0, required=False)
     parser.add_argument('--channel_id', help='', type=int, default=0, required=False)
     parser.add_argument('--pay_len', help='', type=int, default=0, required=False)
+    parser.add_argument('--payload', help='', type=str, default=None, required=False)
     parser.add_argument('--ncsi_cmdstring', help='A NCSI command string fills values automatically',
                         type=str, required=False)
     args = vars(parser.parse_args())

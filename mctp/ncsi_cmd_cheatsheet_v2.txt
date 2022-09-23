@@ -586,7 +586,7 @@ Note: The OEM NCSI command record only required the NCSI command payload but wit
       <OEM ID = 1> <channel id = 0x1f> <command id = 0x13> <payload version = 0x02> <command id = 0x13> /
       <Maximum temperature = 255> <Current temperature = 50>
 
-  "mctp-util -d -s 0x55 1 0 2 0 1 0 0x1d 0x50 0x1f 0x00 0x08 0 0 0 0 0 0 0 0 0x00 0x00 0x02 0xa2 0x02 0x13 0 0 0 0 0 0 0 0 0 0"
+  "mctp-util -d -s 0x55 1 0 2     0 1 0   0x1d 0x50 0x1f   0x00 0x08   0 0 0 0 0 0 0 0     0x00 0x00 0x02 0xa2 0x02 0x13 0 0     0 0 0 0   0 0 0 0"
     smbus: >TX> 0F 26 21 01 00 08 C8 02 00 01 00 1D 50 1F 00 08 00 00 00 00 00 00 00 00 00 00 02 A2 02 13 00 00 00 00 00 00 00 00 00 00 BD
     smbus: <RX< 20 0F 26 AB 01 08 00 C0 02 00 01 00 1D D0 1F 00 08 00 00 00 00 00 00 00 00 00 00 00 00 00 00 02 A2 02 13 FF 32 00 00 00 00 EF
     raw response:
