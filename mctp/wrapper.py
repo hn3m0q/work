@@ -70,7 +70,9 @@ class MCTPWrapper():
                                                              'maximum temperature' :6,
                                                              'current temperature':7},
 
-                                'get version id': {'firmware version': (20, 23),
+                                'get version id': {'alpha 2': 7,
+                                                   'firmware name': "8 19",
+                                                   'firmware version': (20, 23),
                                                    'pci did': (24, 25),
                                                    'pci vid': (25, 26),
                                                    'pci ssid': (27, 28),
@@ -78,7 +80,7 @@ class MCTPWrapper():
                                 'dell oem get invertory': {'firmware family version': (8, 11),
                                                            'type length type': 16,
                                                            'type length length': 17,
-                                                           'device name': (18, 53)},
+                                                           'device name': "18, 53"},
                                 'dell oem get ext capability': {'capability': (6, 9),
                                                                 'dcb capability': 11,
                                                                 'nic partitioning capability': 12,
@@ -90,8 +92,29 @@ class MCTPWrapper():
                                                            'partition status': (8, 9),
                                                            'interface name': 10,
                                                            'length': 11,
-                                                           'interface name': (12, 46)},
-                                'dell oem get payload versions': {'supported versions': 7}}
+                                                           'interface name': "12, 46"},
+                                'dell oem get payload versions': {'supported versions': 7},
+                                'dell oem get os driver version': {'partition id': 6,
+                                                                   'number of active drivers in TLVs':7,
+                                                                   'interface name type':8,
+                                                                   'length':9,
+                                                                   'value':(10, 13)},
+                                'dell oem get interface info': {'interface type': 7,
+                                                                'data field byte 0': 8,
+                                                                'data field byte 1': 9,
+                                                                'data field byte 2': 10,
+                                                                'data field byte 3': 11},
+                                'dell oem get interface sensor': {'status':6,
+                                                                  'identifier':7,
+                                                                  'temp high alarm threshold': (8,9),
+                                                                  'temp high warning threshold': (10, 11),
+                                                                  'temperature value': (12, 13),
+                                                                  'vcc voltage value': (14, 15),
+                                                                  'tx bias current value': (16, 17),
+                                                                  'tx output power value': (18, 19),
+                                                                  'rx input power value': (20, 21),
+                                                                  'flag bytes': (22, 25)}
+                                }
 
 
         """
@@ -118,6 +141,13 @@ class MCTPWrapper():
 
         # ([12:8] and [7:0])
         return ("0", str(hex(dec))) if dec < 255 else (str(hex(dec-255)), str(hex(255)))
+
+    def runall(self, args):
+        args.pop('test')
+        for cmd in self.ncsi_commands:
+            args['ncsi_cmdstring'] = cmd
+            self.run(**args)
+
 
     def run(self, verbose=True, bus=3, dst_eid=0, msg_type='NCSI', cml_decode_response=True,
             slave_addr=55, mc_id=0, hrd_rv=1, iid=1, command=0, channel_id=0, pay_len=0,
@@ -215,9 +245,17 @@ class MCTPWrapper():
             if ncsi_cmdstring in self.ncsi_res_parser:
                 self.response['NCSI Payload Parser'] = dict()
                 for k, v in self.ncsi_res_parser[ncsi_cmdstring].items():
+                    parse_string = False
+                    if v is str:
+                        parse_string = True
+                        v = (int(x) for x in v.split(" "))
                     s = v if type(v) is int else v[0]
                     e = v+1 if type(v) is int else v[1] + 1
-                    self.response['NCSI Payload Parser'][k] = self.response['Payload'][s:e]
+
+                    if parse_string:
+                        self.response['NCSI Payload Parser'][k] = bytearray.fromhex(self.response['Payload'][s:e]).decode()
+                    else:
+                        self.response['NCSI Payload Parser'][k] = self.response['Payload'][s:e]
 
             if verbose:
                 print("Response:")
@@ -234,6 +272,7 @@ if __name__ == "__main__":
     # @note default vals should be the same as default vals in run() so that
     #       both command line and python api behave the same
     parser.add_argument('-v', '--verbose', help='Verbose', type=bool, default=False, required=False)
+    parser.add_argument('-t', '--test', help='Test all NCSI commands', type=bool, default=False, required=False)
     parser.add_argument('--bus', help='', type=int, default=3, required=False)
     parser.add_argument('--dst_eid', help='', type=int, default=0, required=False)
     parser.add_argument('--msg_type', help='', type=str, default='NCSI', required=False)
@@ -250,4 +289,7 @@ if __name__ == "__main__":
                         type=str, required=False)
     args = vars(parser.parse_args())
     m = MCTPWrapper()
-    m.run(**args)
+    if args['test']:
+        m.runall(args)
+    else:
+        m.run(**args)
