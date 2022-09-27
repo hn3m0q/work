@@ -65,10 +65,34 @@ class MCTPWrapper():
         self.raw_response = None
         self.raw_response_list = None
 
-        self.ncsi_res_parser = {'dell oem get temperature': {4:'payloadversion',
-                                                    5:'command id',
-                                                    6:'maximum temperature',
-                                                    7:'current temperature'}}
+        self.ncsi_res_parser = {'dell oem get temperature': {'payloadversion':4 ,
+                                                             'command id':5,
+                                                             'maximum temperature' :6,
+                                                             'current temperature':7},
+
+                                'get version id': {'firmware version': (20, 23),
+                                                   'pci did': (24, 25),
+                                                   'pci vid': (25, 26),
+                                                   'pci ssid': (27, 28),
+                                                   'manufacturer id': (29, 32)}, # TODO string parsing in this example
+                                'dell oem get invertory': {'firmware family version': (8, 11),
+                                                           'type length type': 16,
+                                                           'type length length': 17,
+                                                           'device name': (18, 53)},
+                                'dell oem get ext capability': {'capability': (6, 9),
+                                                                'dcb capability': 11,
+                                                                'nic partitioning capability': 12,
+                                                                'e-swtich capability': 13,
+                                                                '# of pci physical functions': 14,
+                                                                '# of pci virtual functions': 15},
+                                'dell oem get part info': {'# of pci physical functions enabled': 6,
+                                                           'partition id': 7,
+                                                           'partition status': (8, 9),
+                                                           'interface name': 10,
+                                                           'length': 11,
+                                                           'interface name': (12, 46)},
+                                'dell oem get payload versions': {'supported versions': 7}}
+
 
         """
         self.response_parse_list = ["MCTP transport header",
@@ -191,7 +215,9 @@ class MCTPWrapper():
             if ncsi_cmdstring in self.ncsi_res_parser:
                 self.response['NCSI Payload Parser'] = dict()
                 for k, v in self.ncsi_res_parser[ncsi_cmdstring].items():
-                    self.response['NCSI Payload Parser'][v] = self.response['Payload'][k]
+                    s = v if type(v) is int else v[0]
+                    e = v+1 if type(v) is int else v[1] + 1
+                    self.response['NCSI Payload Parser'][k] = self.response['Payload'][s:e]
 
             if verbose:
                 print("Response:")
