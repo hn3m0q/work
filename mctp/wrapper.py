@@ -80,7 +80,7 @@ class MCTPWrapper():
                                 'dell oem get invertory': {'firmware family version': (8, 11),
                                                            'type length type': 16,
                                                            'type length length': 17,
-                                                           'device name': "18, 53"},
+                                                           'device name': "18 53"},
                                 'dell oem get ext capability': {'capability': (6, 9),
                                                                 'dcb capability': 11,
                                                                 'nic partitioning capability': 12,
@@ -92,7 +92,7 @@ class MCTPWrapper():
                                                            'partition status': (8, 9),
                                                            'interface name': 10,
                                                            'length': 11,
-                                                           'interface name': "12, 46"},
+                                                           'interface name': "12 46"},
                                 'dell oem get payload versions': {'supported versions': 7},
                                 'dell oem get os driver version': {'partition id': 6,
                                                                    'number of active drivers in TLVs':7,
@@ -246,14 +246,14 @@ class MCTPWrapper():
                 self.response['NCSI Payload Parser'] = dict()
                 for k, v in self.ncsi_res_parser[ncsi_cmdstring].items():
                     parse_string = False
-                    if v is str:
+                    if type(v) is str:
                         parse_string = True
-                        v = (int(x) for x in v.split(" "))
+                        v = [int(x) for x in v.split(" ")]
                     s = v if type(v) is int else v[0]
                     e = v+1 if type(v) is int else v[1] + 1
-
+                    print("k/v:", k, v, "s:e", s, e, "list", self.response['Payload'][s:e])
                     if parse_string:
-                        self.response['NCSI Payload Parser'][k] = bytearray.fromhex(self.response['Payload'][s:e]).decode()
+                        self.response['NCSI Payload Parser'][k] = bytearray.fromhex("".join(self.response['Payload'][s:e])).decode()
                     else:
                         self.response['NCSI Payload Parser'][k] = self.response['Payload'][s:e]
 
