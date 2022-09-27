@@ -176,7 +176,7 @@ class MCTPWrapper():
 
         # slave address
         if slave_addr:
-            cmd.extend(["-s", str(slave_addr)])
+            cmd.extend(["-s", str(hex(slave_addr))])
 
         # <bus> <dst_eid> <type>
         cmd.extend([str(bus), str(dst_eid), str(self.msg_type[msg_type])])
@@ -188,9 +188,9 @@ class MCTPWrapper():
         packet_header.append(str(self.mc_id))            # MC_ID,
         packet_header.append(str(self.hrd_rv)),          # HDR_RV
         packet_header.append("0")                        # RSVD
-        packet_header.append(str(self.iid))              # IID
-        packet_header.append(str(self.command))          # CMD
-        packet_header.append(str(self.channel_id))       # CHANNEL_ID
+        packet_header.append(str(hex(self.iid)))              # IID
+        packet_header.append(str(hex(self.command)))          # CMD
+        packet_header.append(str(hex(self.channel_id)))       # CHANNEL_ID
         packet_header.extend(list(parsed_pay_len))       # PAYLOAD_LEN[12:8], PAYLOAD_LEN[7:0]
         packet_header.extend(["0"] * 8)                  # RSVD[63:0]
 
