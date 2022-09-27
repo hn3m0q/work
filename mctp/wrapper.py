@@ -201,6 +201,9 @@ class MCTPWrapper():
         #print(self.pay_len, self.payload)
         if self.payload:
             cmd.extend(self.payload.split(' '))
+        else:
+            if self.pay_len:
+                cmd.extend(["0"] * self.pay_len)
 
         # payload padding
         cmd.extend(['0']*self.payload_padding_len)
