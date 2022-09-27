@@ -32,8 +32,8 @@ class MCTPWrapper():
             'set vlan filter':               {'iid':0xb,  'command':0xb,                     'pay_len':8},
             'enable vlan':                   {'iid':0xc,  'command':0xc,                     'pay_len':4},
             'disable vlan':                  {'iid':0xd,  'command':0xd},
-            'set mac address':               {'iid':0xe,  'command':0xe,                     'pay_len': 8, 'payload': "0x66 0x55 0x44 0x33 0x22 0x11 1 0"},#WRONG
-            'enable broadcast filtering':    {'iid':0xf,  'command':0x10,                    'pay_len': 4}, #wrong
+            'set mac address':               {'iid':0xe,  'command':0xe,                     'pay_len': 8, 'payload': "0x66 0x55 0x44 0x33 0x22 0x11 1 0"},
+            'enable broadcast filtering':    {'iid':0xf,  'command':0x10,                    'pay_len': 4},
             'disable broadcast filtering':   {'iid':0x10, 'command':0x11},
             'get version id':                {'iid':0x11, 'command':0x15, 'channel_id':0x01},
             'dell oem set address':          {'iid':0x13, 'command':0x50,                    'pay_len':0x10, 'payload':"0x00 0x00 0x02 0xa2 0x02 0x07 0 1 6 11 22 33 44 55 66 0"},
@@ -209,6 +209,8 @@ class MCTPWrapper():
         cmd.extend(self.checksum.split(' '))
 
         if verbose:
+            if ncsi_cmdstring in self.ncsi_commands:
+                print("Running: ", ncsi_cmdstring)
             print("Running: " + " ".join(cmd))
 
         try:
@@ -241,7 +243,6 @@ class MCTPWrapper():
             self.response['ResponseReason'] = self.raw_response_list[i+12:i+14]
             self.response['Payload'] = self.raw_response_list[i+14:]
 
-            # TODO parse for each example
             if ncsi_cmdstring in self.ncsi_res_parser:
                 self.response['NCSI Payload Parser'] = dict()
                 for k, v in self.ncsi_res_parser[ncsi_cmdstring].items():
@@ -251,7 +252,7 @@ class MCTPWrapper():
                         v = [int(x) for x in v.split(" ")]
                     s = v if type(v) is int else v[0]
                     e = v+1 if type(v) is int else v[1] + 1
-                    print("k/v:", k, v, "s:e", s, e, "list", self.response['Payload'][s:e])
+                    #print("k/v:", k, v, "s:e", s, e, "list", self.response['Payload'][s:e])
                     if parse_string:
                         self.response['NCSI Payload Parser'][k] = bytearray.fromhex("".join(self.response['Payload'][s:e])).decode()
                     else:
@@ -285,7 +286,7 @@ if __name__ == "__main__":
     parser.add_argument('--channel_id', help='', type=int, default=0, required=False)
     parser.add_argument('--pay_len', help='', type=int, default=0, required=False)
     parser.add_argument('--payload', help='', type=str, default=None, required=False)
-    parser.add_argument('--ncsi_cmdstring', help='A NCSI command string fills values automatically',
+    parser.add_argument('--ncsi_cmdstring', help='A NCSI command string that fills values automatically',
                         type=str, required=False)
     args = vars(parser.parse_args())
     m = MCTPWrapper()
