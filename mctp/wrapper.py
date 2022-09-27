@@ -281,7 +281,7 @@ if __name__ == "__main__":
     parser.add_argument('--dst_eid', help='', type=int, default=0, required=False)
     parser.add_argument('--msg_type', help='', type=str, default='NCSI', required=False)
     parser.add_argument('--cml_decode_response', help='', type=bool, default=True, required=False)
-    parser.add_argument('--slave_addr', help='Slave address', type=int, default=55, required=False)
+    parser.add_argument('--slave_addr', help='Slave address', type=int, default=0x55, required=False)
     parser.add_argument('--mc_id', help='MC ID', type=int, default=0, required=False)
     parser.add_argument('--hrd_rv', help='Header revision', type=int, default=1, required=False)
     parser.add_argument('--iid', help='IID', type=int, default=1, required=False)
