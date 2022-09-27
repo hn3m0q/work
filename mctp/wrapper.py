@@ -292,4 +292,5 @@ if __name__ == "__main__":
     if args['test']:
         m.runall(args)
     else:
+        args.pop('test')
         m.run(**args)
