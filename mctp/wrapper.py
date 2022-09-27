@@ -150,7 +150,7 @@ class MCTPWrapper():
 
 
     def run(self, verbose=True, bus=3, dst_eid=0, msg_type='NCSI', cml_decode_response=True,
-            slave_addr=55, mc_id=0, hrd_rv=1, iid=1, command=0, channel_id=0, pay_len=0,
+            slave_addr=0x55, mc_id=0, hrd_rv=1, iid=1, command=0, channel_id=0, pay_len=0,
             payload=None, ncsi_cmdstring=None):
 
         self.mc_id = mc_id
