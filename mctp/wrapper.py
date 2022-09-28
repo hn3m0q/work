@@ -43,7 +43,7 @@ class MCTPWrapper():
             'dell oem disable wol':          {'iid':0x17, 'command':0x50,                    'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x16 0 0'},
             'dell oem get lldp':             {'iid':0x18, 'command':0x50,                    'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x28 0 0'},
             'dell oem send ethernet frame':  {'iid':0x19, 'command':0x50,                    'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x2b 0 0'},
-            'dell oem get inventory':        {'iid':0x1a, 'command':0x50,                    'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x00 0 0'},
+            'dell oem get inventory':        {'iid':0x1a, 'command':0x50, 'channel_id':1,    'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x00 0 0'},
             'dell oem get ext capability':   {'iid':0x1b, 'command':0x50, 'channel_id':2,    'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x01 0 0'},
             'dell oem get part info':        {'iid':0x1c, 'command':0x50, 'channel_id':3,    'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x02 0 0'},
             'dell oem get temperature':      {'iid':0x1d, 'command':0x50, 'channel_id':0x1f, 'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x13 0 0'},
