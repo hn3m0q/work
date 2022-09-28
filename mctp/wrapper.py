@@ -129,7 +129,7 @@ class MCTPWrapper():
     def pretty(self, d, indent=1):
         for key, value in d.items():
             if isinstance(value, dict):
-                print('    ' * indent + str(key))
+                print('    ' * indent + str(key) + ':')
                 self.pretty(value, indent+1)
             else:
                 print('    ' * (indent) + f"{key}: {value}")
@@ -257,7 +257,6 @@ class MCTPWrapper():
             self.sent['checksum'] = self.checksum.split(' ')
             print("Command sent:")
             self.pretty(self.sent)
-            print()
 
         try:
             #res = subprocess.run(["python", "-c", "\"print(123)\""], capture_output=True, text=True)
