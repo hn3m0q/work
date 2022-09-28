@@ -130,7 +130,7 @@ class MCTPWrapper():
         for key, value in d.items():
             if isinstance(value, dict):
                 print('  ' * indent + str(key))
-                self.pretty(value, indent)
+                self.pretty(value, indent+1)
             else:
                 print('  ' * (indent) + f"{key}: {value}")
 
