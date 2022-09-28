@@ -239,6 +239,7 @@ class MCTPWrapper():
         cmd.extend(self.checksum.split(' '))
 
         if verbose:
+            print()
             if ncsi_cmdstring in self.ncsi_commands:
                 print("Running: ", ncsi_cmdstring)
             print("Running: " + " ".join(cmd))
