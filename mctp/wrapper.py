@@ -126,13 +126,13 @@ class MCTPWrapper():
                                     "Payload"]
         """
 
-    def pretty(self, d, indent=4):
+    def pretty(self, d, indent=1):
         for key, value in d.items():
             if isinstance(value, dict):
-                print('  ' * indent + str(key))
+                print('    ' * indent + str(key))
                 self.pretty(value, indent+1)
             else:
-                print('  ' * (indent) + f"{key}: {value}")
+                print('    ' * (indent) + f"{key}: {value}")
 
     # TODO check
     def dec_to_2_hex_str(self, dec):
@@ -228,10 +228,12 @@ class MCTPWrapper():
         # payload
         #print(self.pay_len, self.payload)
         if self.payload:
-            cmd.extend(self.payload.split(' '))
+            self.payload = self.payload.split(' ')
+            cmd.extend(self.payload)
         else:
             if self.pay_len:
-                cmd.extend(["0"] * self.pay_len)
+                self.payload = ["0"] * self.pay_len
+                cmd.extend(self.payload)
 
         # payload padding
         cmd.extend(['0']*self.payload_padding_len)
@@ -244,6 +246,18 @@ class MCTPWrapper():
             if ncsi_cmdstring in self.ncsi_commands:
                 print("Running Example:", ncsi_cmdstring)
             print("Excuting: " + " ".join(cmd))
+            self.sent = dict()
+            self.sent['mc_id'] = str(self.mc_id)
+            self.sent['hrd_rv'] = str(self.hrd_rv)
+            self.sent['iid'] = str(hex(self.iid))
+            self.sent['command'] = str(hex(self.command))
+            self.sent['channel_id'] = str(hex(self.channel_id))
+            self.sent['pay_len'] = list(parsed_pay_len)
+            self.sent['payload'] = self.payload
+            self.sent['checksum'] = self.checksum.split(' ')
+            print("Command sent:")
+            self.pretty(self.sent)
+            print()
 
         try:
             #res = subprocess.run(["python", "-c", "\"print(123)\""], capture_output=True, text=True)
