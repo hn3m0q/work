@@ -130,9 +130,9 @@ class MCTPWrapper():
         for key, value in d.items():
             if isinstance(value, dict):
                 print('  ' * indent + str(key))
-                self.pretty(value, indent+1)
+                self.pretty(value, indent)
             else:
-                print('  ' * (indent+1) + f"{key}: {value}")
+                print('  ' * (indent) + f"{key}: {value}")
 
     # TODO check
     def dec_to_2_hex_str(self, dec):
@@ -242,8 +242,8 @@ class MCTPWrapper():
         if verbose:
             print()
             if ncsi_cmdstring in self.ncsi_commands:
-                print("Running: ", ncsi_cmdstring)
-            print("Running: " + " ".join(cmd))
+                print("Running Example:", ncsi_cmdstring)
+            print("Excuting: " + " ".join(cmd))
 
         try:
             #res = subprocess.run(["python", "-c", "\"print(123)\""], capture_output=True, text=True)
