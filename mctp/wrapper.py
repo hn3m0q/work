@@ -45,7 +45,7 @@ class MCTPWrapper():
             'dell oem send ethernet frame':  {'iid':0x19, 'command':0x50,                    'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x2b 0 0'},
             'dell oem get inventory':        {'iid':0x1a, 'command':0x50,                    'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x00 0 0'},
             'dell oem get ext capability':   {'iid':0x1b, 'command':0x50, 'channel_id':2,    'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x01 0 0'},
-            'dell oem get part info':        {'iid':0x1c, 'comamnd':0x50, 'channel_id':3,    'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x02 0 0'},
+            'dell oem get part info':        {'iid':0x1c, 'command':0x50, 'channel_id':3,    'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x02 0 0'},
             'dell oem get temperature':      {'iid':0x1d, 'command':0x50, 'channel_id':0x1f, 'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x13 0 0'},
             'dell oem get payload versions': {'iid':0x1e, 'command':0x50, 'channel_id':0x1f, 'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x1a 0 0'},
             'dell oem get os driver version':{'iid':0x1f, 'command':0x50, 'channel_id':0x01, 'pay_len':8,    'payload':'0x00 0x00 0x02 0xa2 0x02 0x1c 0 0'},
@@ -77,7 +77,7 @@ class MCTPWrapper():
                                                    'pci vid': (25, 26),
                                                    'pci ssid': (27, 28),
                                                    'manufacturer id': (29, 32)}, # TODO string parsing in this example
-                                'dell oem get invertory': {'firmware family version': (8, 11),
+                                'dell oem get inventory': {'firmware family version': (8, 11),
                                                            'type length type': 16,
                                                            'type length length': 17,
                                                            'device name': "18 53"},
