@@ -2,6 +2,199 @@
 import sys
 import subprocess
 import argparse
+from xmlrpc.server import CGIXMLRPCRequestHandler
+
+class SMBusWrapper():
+    def __init__(self):
+        self.sensor_reading_reg_map = {
+            'chip thermal margin': 0x00,
+            'chip junction temperature': 0x01,
+            'chip termperature offset': 0x11,
+            'power consumption': 0x88
+        }
+
+        self.counter_type_map = {
+            'rx receive count': 0x00,
+            'rx error count': 0x01,
+            'rx drop count': 0x02,
+            'tx send count': 0x03,
+            'tx error count': 0x04,
+            'tx drop count': 0x05,
+        }
+
+
+
+
+        self.cmd_string_parse_map = {
+            'sensor reading': {},
+            'get mac counter': {},
+            'clear mac counter': {},
+            'get ras record': {},
+            'get ras record count': {},
+            'get byte data': {},
+            'get string data': {},
+            'send async request': {},
+            'query async request': {},
+            'get asping reset': {}
+        }
+        pass
+
+    # @note this could be slow, could make dict elements as static strings and
+    # use eval() to return corresponding dynamic lists
+    def cmd_string_map(self):
+        return {
+            'sensor reading': [self.slave_addr, str(self.sensor_reading_reg_map[self.reg_string]), 'i', '1'],
+            'get mac counter': ["w5@"+self.slave_addr, self.op_command ,self.reg_type ,self.cgx, self.lmac, self.pec, "r8"],
+            'clear mac counter': ["w5@"+self.slave_addr, self.op_command, self.reg_type, self.cgx, self.lmac, self.pec, "r2"],
+            'get ras record': ["w1@"+self.slave_addr, self.op_command, "r160"],
+            'get ras record count': ["w1@"+self.slave_addr, self.op_command, "r2"],
+            'get byte data': ["w2@"+self.slave_addr, self.op_command, self.index, "r2"],
+            'get string data': ["w2@"+self.slave_addr, self.op_command, self.index, "r"+self.string_data_len],
+            'send async request': ["w"+self.n_bytes+"@"+self.slave_addr, self.op_command, self.index, self.sent_bytes, self.pec, "r6"],
+            'query async request': ["w2@"+self.slave_addr, self.op_command, self.index, "r"+self.n_bytes],
+            'get asping reset': ["w2@"+self.slave_addr, self.op_command, self.index, "r38"],
+        }
+
+    # @note already implemented above def cmd_string_map
+    # all the prepare functions could be replaced by a single dict of lists that tells the sequence
+    # to write for each cmd_string, but wN@slave_addr makes it not ideal and bothering to implement
+    '''
+    def prepare_sensor_reading_cmd(self):
+        self.cmd.append(self.slave_addr)
+        self.cmd.append(self.sensor_reading_reg_map[self.reg_string] if self.reg_string else self.reg)
+
+        self.cmd.append("i")
+        self.cmd.append("1")
+
+    def prepare_get_mac_counter_cmd(self):
+        self.cmd.append("w5@"+self.slave_addr)
+        self.cmd.append(self.op_command)
+        self.cmd.append(self.reg_type)
+        self.cmd.append(self.cgx)
+        self.cmd.append(self.lmac)
+        self.cmd.append(self.pec)
+
+        self.cmd.append("r8")
+
+    def prepare_clear_mac_counter_cmd(self):
+        self.cmd.append("w5@"+self.slave_addr)
+        self.cmd.append(self.op_command)
+        self.cmd.append(self.reg_type)
+        self.cmd.append(self.cgx)
+        self.cmd.append(self.lmac)
+        self.cmd.append(self.pec)
+
+        self.cmd.append("r2")
+
+    def prepare_get_ras_record_cmd(self):
+        self.cmd.append("w1@"+self.slave_addr)
+        self.cmd.append(self.op_command)
+        self.cmd.append("r160")
+
+    def prepare_get_ras_record_count_cmd(self):
+        self.cmd.append("w1@"+self.slave_addr)
+        self.cmd.append(self.op_command)
+
+        self.cmd.append("r2")
+
+    def prepare_get_byte_data_cmd(self):
+        self.cmd.append("w2@"+self.slave_addr)
+        self.cmd.append(self.op_command)
+        self.cmd.append(self.index)
+
+        self.cmd.append("r2")
+
+    def prepare_get_string_data_cmd(self):
+        self.cmd.append("w2@"+self.slave_addr)
+        self.cmd.append(self.op_command)
+        self.cmd.append(self.index)
+
+        self.cmd.append("r"+self.string_data_len)
+
+    def prepare_send_async_request_cmd(self):
+        self.cmd.append("w"+self.n_bytes+"@"+self.slave_addr)
+        self.cmd.append(self.op_command)
+        self.cmd.append(self.index)
+        self.cmd.append(self.sent_bytes)
+        self.cmd.append(self.pec)
+
+        self.cmd.append("r6")
+
+    def prepare_query_async_request_cmd(self):
+        self.cmd.append("w2@"+self.slave_addr)
+        self.cmd.append(self.op_command)
+        self.cmd.append(self.index)
+
+        self.cmd.append("r"+self.n_bytes)
+
+    def prepare_get_asping_reset(self):
+        self.cmd.append("w2@"+self.slave_addr)
+        self.cmd.append(self.op_command)
+        self.cmd.append(self.index)
+
+        self.cmd.append("r38")
+    '''
+    def parse(self):
+        if not self.cmd_string:
+            sys.exit("cmd_string must be defined to parse")
+        elif self.cmd_string:
+            pass
+
+    def stringfy(self):
+        self.bus = str(self.bus)
+        self.slave_addr = str(self.slave_addr)
+        self.reg = str(self.reg)
+        self.cgx = str(self.cgx)
+        self.lmac = str(self.lmac)
+        self.pec = str(self.pec)
+        self.index = str(self.index)
+        self.string_data_len = str(self.string_data_len)
+        self.n_bytes = str(self.n_bytes)
+        self.sent_bytes = str(self.sent_bytes)
+
+    def run(self, verbose=True, i2c_command='i2cget', bus=3, cmd_string='sensor reading',
+            slave_addr=0x55, reg_string='chip thermal margin', reg=0x00, op_command=0x00,
+            reg_type='', cgx=0, lmac=0, pec=0, index=0, string_data_len=0, n_bytes=0, sent_bytes=0):
+        self.verbose = verbose
+        self.i2c_command = i2c_command
+        self.bus = bus
+        self.cmd_string = cmd_string
+        self.slave_addr = slave_addr
+        self.reg = reg
+        self.reg_string = reg_string
+        self.op_command = op_command
+        self.reg_type = reg_type
+        self.cgx = cgx
+        self.lmac = lmac
+        self.pec = pec
+        self.index = index
+        self.string_data_len = string_data_len
+        self.n_bytes = n_bytes
+        self.sent_bytes = sent_bytes
+
+        self.stringfy()
+
+        if self.i2c_command:
+            self.cmd = [self.i2c_command]
+        else:
+            if self.cmd_string == None:
+                sys.exit('i2c_command must be defined, or define cmd_string')
+            elif self.cmd_string == 'get sensor reading':
+                self.cmd = ['i2cget']
+            else:
+                self.cmd = ['i2ctransfer']
+
+        self.cmd.append('-y')
+
+        self.cmd.append(self.bus)
+
+        if self.cmd_string:
+            self.cmd.extend(self.cmd_string_map()[self.cmd_string])
+            if self.verbose:
+                print(' '.join(self.cmd))
+            self.parse()
+
+
 
 class MCTPWrapper():
     def __init__(self):
@@ -15,7 +208,7 @@ class MCTPWrapper():
         self.checksum = '0 0 0 0'
 
         # TODO: enum in python?
-        self.msg_type = {'MCTP': 0, 'PLDM':1, 'NCSI':2, 'ETH':3, 'NVME':4, 'SPDM':5, 'SecMsg':6}
+        self.msg_type_keys = {'MCTP': 0, 'PLDM':1, 'NCSI':2, 'ETH':3, 'NVME':4, 'SPDM':5, 'SecMsg':6}
 
         # @note this relies on other parameters being default as 0s.
         self.ncsi_commands = {
@@ -140,7 +333,7 @@ class MCTPWrapper():
             raise ValueError("Payload length has 13 bits.")
 
         # ([12:8] and [7:0])
-        return ("0", str(hex(dec))) if dec < 255 else (str(hex(dec-255)), str(hex(255)))
+        return ["0", str(hex(dec))] if dec < 255 else [str(hex(dec-255)), str(hex(255))]
 
     def runall(self, args):
         '''
@@ -176,57 +369,95 @@ class MCTPWrapper():
                 self.run(ncsi_cmdstring='clear initial state')
 
 
+    def prep_ncsi_header(self):
+        # start of packet header
+        self.packet_header = list()
+
+        # MC_ID, HDR_RV, RESV, IID ...
+        self.packet_header.append(self.mc_id)                 # MC_ID,
+        self.packet_header.append(self.hrd_rv)                # HDR_RV
+        self.packet_header.append("0")                        # RSVD
+        self.packet_header.append(self.iid)                   # IID
+        self.packet_header.append(self.command)               # CMD
+        self.packet_header.append(self.channel_id)            # CHANNEL_ID
+        self.packet_header.extend(self.parsed_pay_len)        # PAYLOAD_LEN[12:8], PAYLOAD_LEN[7:0]
+        self.packet_header.extend(["0"] * 8)                  # RSVD[63:0]
+
+    def print_sent(self):
+        self.sent = dict()
+
+        self.sent['mc_id'] = self.mc_id
+        self.sent['hrd_rv'] = self.hrd_rv
+        self.sent['iid'] = self.iid
+        self.sent['command'] = self.command
+        self.sent['channel_id'] = self.channel_id
+        self.sent['pay_len'] = self.parsed_pay_len
+        self.sent['payload'] = self.payload
+        self.sent['checksum'] = self.checksum
+
+        self.pretty(self.sent)
+
+    def stringfy(self):
+        self.bus = str(self.bus)
+        self.dst_eid = str(self.dst_eid)
+        self.msg_type = str(self.msg_type_keys[self.msg_type])
+        self.slave_addr = str(hex(self.slave_addr))
+        self.mc_id = str(self.mc_id)
+        self.hrd_rv = str(self.hrd_rv)
+        self.iid = str(hex(self.iid))
+        self.command = str(hex(self.command))
+        self.channel_id = str(hex(self.channel_id))
+
     def run(self, verbose=True, bus=3, dst_eid=0, msg_type='NCSI', cml_decode_response=True,
             slave_addr=0x55, mc_id=0, hrd_rv=1, iid=1, command=0, channel_id=0, pay_len=0,
             payload=None, ncsi_cmdstring=None):
-        self.response = dict()
+        self.verbose             = verbose
 
-        self.mc_id = mc_id
-        self.hrd_rv = hrd_rv
-        self.iid = iid
-        self.command = command
-        self.channel_id = channel_id
-        self.pay_len = pay_len
-        self.payload = payload
+        self.cml_decode_response = cml_decode_response
+        self.payload             = payload
+
+        self.bus                 = bus
+        self.dst_eid             = dst_eid
+        self.msg_type            = msg_type
+        self.slave_addr          = slave_addr
+        self.mc_id               = mc_id
+        self.hrd_rv              = hrd_rv
+        self.iid                 = iid
+        self.command             = command
+        self.channel_id          = channel_id
+        self.pay_len             = pay_len
 
         # override variables if cmd_string is defined
         if ncsi_cmdstring in self.ncsi_commands:
             for k in self.ncsi_commands[ncsi_cmdstring]:
                 setattr(self, k, self.ncsi_commands[ncsi_cmdstring][k])
 
-        parsed_pay_len = self.dec_to_2_hex_str(self.pay_len)
+        # all self attrs are string based for subprocess.run(), multi-byte attrs are list of strings
+        self.stringfy()
+        self.parsed_pay_len = self.dec_to_2_hex_str(int(self.pay_len))
 
+        # prepare the sent command
         cmd = ["mctp-util"]
 
         # decode response
-        if cml_decode_response:
+        if self.cml_decode_response:
             cmd.append("-d")
 
         # slave address
-        if slave_addr:
-            cmd.extend(["-s", str(hex(slave_addr))])
+        if self.slave_addr:
+            cmd.extend(["-s", self.slave_addr])
 
         # <bus> <dst_eid> <type>
-        cmd.extend([str(bus), str(dst_eid), str(self.msg_type[msg_type])])
+        cmd.extend([self.bus, self.dst_eid, self.msg_type])
 
-        # start of packet header
-        packet_header = list()
-
-        # MC_ID, HDR_RV, RESV, IID ...
-        packet_header.append(str(self.mc_id))            # MC_ID,
-        packet_header.append(str(self.hrd_rv)),          # HDR_RV
-        packet_header.append("0")                        # RSVD
-        packet_header.append(str(hex(self.iid)))              # IID
-        packet_header.append(str(hex(self.command)))          # CMD
-        packet_header.append(str(hex(self.channel_id)))       # CHANNEL_ID
-        packet_header.extend(list(parsed_pay_len))       # PAYLOAD_LEN[12:8], PAYLOAD_LEN[7:0]
-        packet_header.extend(["0"] * 8)                  # RSVD[63:0]
+        # prepare header
+        if int(self.msg_type) == self.msg_type_keys['NCSI']:
+            self.prep_ncsi_header()
 
         # add NCSI packet header
-        cmd.extend(packet_header)
+        cmd.extend(self.packet_header)
 
         # payload
-        #print(self.pay_len, self.payload)
         if self.payload:
             self.payload = self.payload.split(' ')
             cmd.extend(self.payload)
@@ -243,72 +474,73 @@ class MCTPWrapper():
 
         if verbose:
             print()
+
             if ncsi_cmdstring in self.ncsi_commands:
                 print("Running Example:", ncsi_cmdstring)
-            print("Excuting: " + " ".join(cmd))
-            self.sent = dict()
-            self.sent['mc_id'] = str(self.mc_id)
-            self.sent['hrd_rv'] = str(self.hrd_rv)
-            self.sent['iid'] = str(hex(self.iid))
-            self.sent['command'] = str(hex(self.command))
-            self.sent['channel_id'] = str(hex(self.channel_id))
-            self.sent['pay_len'] = list(parsed_pay_len)
-            self.sent['payload'] = self.payload
-            self.sent['checksum'] = self.checksum.split(' ')
-            print("Command sent:")
-            self.pretty(self.sent)
 
+            print("Excuting: " + " ".join(cmd))
+            print("Command sent:")
+
+            self.print_sent()
         try:
             #res = subprocess.run(["python", "-c", "\"print(123)\""], capture_output=True, text=True)
             #res = subprocess.run(["dir"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            res = subprocess.run(cmd, capture_output=True, text=True)
+            self.res = subprocess.run(cmd, capture_output=True, text=True)
             #print(res.stderr)
             #print("-------------")
-
-            # get raw reponse line
-            response_lines = res.stdout.splitlines()
-            for i, l in enumerate(response_lines):
-                if "raw response" in l:
-                    self.raw_response = response_lines[i+1]
-                    break
-            if not self.raw_response:
-                sys.exit("Command failed to have a raw reponse in stdout")
-
-            self.raw_response_list = self.raw_response.split(' ')
-
-            # assign MC_ID, HDR_RV, .... PAYLOAD_LEN, single byte vals
-            for i, val in enumerate(self.raw_response_list):
-                if i < len(self.fixed_val_keys):
-                    self.response[self.fixed_val_keys[i]] = val
-                else:
-                    break
-
-            self.response['PayLen'] = self.raw_response_list[i:i+10]
-            self.response['ResponseCode'] = self.raw_response_list[i+10:i+12]
-            self.response['ResponseReason'] = self.raw_response_list[i+12:i+14]
-            self.response['Payload'] = self.raw_response_list[i+14:]
-
-            if ncsi_cmdstring in self.ncsi_res_parser:
-                self.response['NCSI Payload Parser'] = dict()
-                for k, v in self.ncsi_res_parser[ncsi_cmdstring].items():
-                    parse_string = False
-                    if type(v) is str:
-                        parse_string = True
-                        v = [int(x) for x in v.split(" ")]
-                    s = v if type(v) is int else v[0]
-                    e = v+1 if type(v) is int else v[1] + 1
-                    #print("k/v:", k, v, "s:e", s, e, "list", self.response['Payload'][s:e])
-                    if parse_string:
-                        self.response['NCSI Payload Parser'][k] = bytearray.fromhex("".join(self.response['Payload'][s:e])).decode()
-                    else:
-                        self.response['NCSI Payload Parser'][k] = self.response['Payload'][s:e]
-
-            if verbose:
-                print("Response:")
-                self.pretty(self.response)
-
         except subprocess.CalledProcessError as e:
             print(e.output)
+
+        self.parse()
+
+    def parse(self):
+        self.response = dict()
+
+        # get raw reponse line
+        response_lines = self.res.stdout.splitlines()
+
+        for i, l in enumerate(response_lines):
+            if "raw response" in l:
+                self.raw_response = response_lines[i+1]
+                break
+
+        if not self.raw_response:
+            sys.exit("Command failed to have a raw reponse in stdout")
+        self.raw_response_list = self.raw_response.split(' ')
+
+        # assign MC_ID, HDR_RV, .... PAYLOAD_LEN, single byte vals
+        for i, val in enumerate(self.raw_response_list):
+            if i < len(self.fixed_val_keys):
+                self.response[self.fixed_val_keys[i]] = val
+            else:
+                break
+
+        self.response['PayLen'] = self.raw_response_list[i:i+10]
+        self.response['ResponseCode'] = self.raw_response_list[i+10:i+12]
+        self.response['ResponseReason'] = self.raw_response_list[i+12:i+14]
+        self.response['Payload'] = self.raw_response_list[i+14:]
+
+        if self.ncsi_cmdstring in self.ncsi_res_parser:
+            self.response['NCSI Payload Parser'] = dict()
+
+            for k, v in self.ncsi_res_parser[self.ncsi_cmdstring].items():
+                parse_string = False
+                if type(v) is str:
+                    parse_string = True
+                    v = [int(x) for x in v.split(" ")]
+                s = v if type(v) is int else v[0]
+                e = v+1 if type(v) is int else v[1] + 1
+                #print("k/v:", k, v, "s:e", s, e, "list", self.response['Payload'][s:e])
+                if parse_string:
+                    self.response['NCSI Payload Parser'][k] = bytearray.fromhex("".join(self.response['Payload'][s:e])).decode()
+                else:
+                    self.response['NCSI Payload Parser'][k] = self.response['Payload'][s:e]
+
+        if self.verbose:
+            print("Response:")
+            self.pretty(self.response)
+
+
 
     def verify(self):
         pass
@@ -317,8 +549,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # @note default vals should be the same as default vals in run() so that
     #       both command line and python api behave the same
-    parser.add_argument('-v', '--verbose', help='Verbose', type=bool, default=False, required=False)
-    parser.add_argument('-t', '--test', help='Test all NCSI commands', type=bool, default=False, required=False)
+    parser.add_argument('-w', '--wrapper', help='Which wrapper to use', required=True)
+    parser.add_argument('-v', '--verbose', help='Verbose', action='store_true')
+    parser.add_argument('-t', '--test', help='Test all NCSI commands', action='store_true')
     parser.add_argument('--bus', help='', type=int, default=3, required=False)
     parser.add_argument('--dst_eid', help='', type=int, default=0, required=False)
     parser.add_argument('--msg_type', help='', type=str, default='NCSI', required=False)
@@ -334,9 +567,16 @@ if __name__ == "__main__":
     parser.add_argument('--ncsi_cmdstring', help='A NCSI command string that fills values automatically',
                         type=str, required=False)
     args = vars(parser.parse_args())
-    m = MCTPWrapper()
-    if args['test']:
-        m.runall(args)
-    else:
-        args.pop('test')
-        m.run(**args)
+
+    if args['wrapper'] == 'NCSI':
+        args.pop('wrapper')
+        m = MCTPWrapper()
+        if args['test']:
+            m.runall(args)
+        else:
+            args.pop('test')
+            m.run(**args)
+    elif args['wrapper'] == 'SMBus':
+        args.pop('wrapper')
+        w = SMBusWrapper()
+        w.run()
