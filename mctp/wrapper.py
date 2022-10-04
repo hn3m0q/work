@@ -6,6 +6,8 @@ from xmlrpc.server import CGIXMLRPCRequestHandler
 
 class SMBusWrapper():
     def __init__(self):
+        self.res = None
+
         self.sensor_reading_reg_map = {
             'chip thermal margin': 0x00,
             'chip junction temperature': 0x01,
@@ -22,37 +24,44 @@ class SMBusWrapper():
             'tx drop count': 0x05,
         }
 
-
-
-
-        self.cmd_string_parse_map = {
-            'sensor reading': {},
-            'get mac counter': {},
-            'clear mac counter': {},
-            'get ras record': {},
-            'get ras record count': {},
-            'get byte data': {},
-            'get string data': {},
-            'send async request': {},
-            'query async request': {},
-            'get asping reset': {}
+        self.op_code_parse_map = {
+            0x00: "success",
+            0x01: "pending",
+            0x80: "invalid request",
+            0x81: "not ready",
+            0x82: "busy",
+            0x83: "not exist"
         }
-        pass
+
+    def cmd_string_parse_map(self):
+        return {
+            'sensor reading': {},
+            'get mac counter': {'op_code': 0, 'counters': (1, 6), 'pec': 7},
+            'clear mac counter': {'op_code': 0, 'pec': 1},
+            'get ras record': {'op_code': 0, 'time': (1, 4), 'message length': 5, 'message': (6, self.n_bytes), 'pec': 7},
+            'get ras record count': {'op_code': 0, 'record numbers': 1},
+            'get byte data': {'index': 0, 'byte_data': 1},
+            'get string data': {'index': 0, 'bytes': (1, self.n_bytes), 'pec':self.n_bytes+1},
+            'send async request': {'op_code': 0, 'sequence': 1, 'exp_time': (2, 3)},
+            'query async request': {'op_code': 0, 'sequence': 1, 'bytes': (3, 3+self.n_bytes), 'pec': 3+self.n_bytes+1},
+            'get asping reset': {'op_code': 0, 'send_probes': 1, 'send broadcast': 2, 'received response':3,
+                                 'target ip': (4, 7), 'source ip': (8, 11), 'device name': (12, 27), 'mac addr': (28, 33), 'time': (34, 37)}
+        }
 
     # @note this could be slow, could make dict elements as static strings and
     # use eval() to return corresponding dynamic lists
     def cmd_string_map(self):
         return {
-            'sensor reading': [self.slave_addr, str(self.sensor_reading_reg_map[self.reg_string]), 'i', '1'],
-            'get mac counter': ["w5@"+self.slave_addr, self.op_command ,self.reg_type ,self.cgx, self.lmac, self.pec, "r8"],
-            'clear mac counter': ["w5@"+self.slave_addr, self.op_command, self.reg_type, self.cgx, self.lmac, self.pec, "r2"],
-            'get ras record': ["w1@"+self.slave_addr, self.op_command, "r160"],
-            'get ras record count': ["w1@"+self.slave_addr, self.op_command, "r2"],
-            'get byte data': ["w2@"+self.slave_addr, self.op_command, self.index, "r2"],
-            'get string data': ["w2@"+self.slave_addr, self.op_command, self.index, "r"+self.string_data_len],
-            'send async request': ["w"+self.n_bytes+"@"+self.slave_addr, self.op_command, self.index, self.sent_bytes, self.pec, "r6"],
-            'query async request': ["w2@"+self.slave_addr, self.op_command, self.index, "r"+self.n_bytes],
-            'get asping reset': ["w2@"+self.slave_addr, self.op_command, self.index, "r38"],
+            'sensor reading': [self.slave_addr, str(hex(self.sensor_reading_reg_map[self.thermal_reg_string])), 'i', '1'],
+            'get mac counter': ["w5@"+self.slave_addr, "0x40", str(hex(self.counter_type_map[self.counter_type_string])), self.cgx, self.lmac, self.pec, "r8"],
+            'clear mac counter': ["w5@"+self.slave_addr, "0x41", str(hex(self.counter_type_map[self.counter_type_string])), self.cgx, self.lmac, self.pec, "r2"],
+            'get ras record': ["w1@"+self.slave_addr, "0x60", "r160"],
+            'get ras record count': ["w1@"+self.slave_addr, "0x61", "r2"],
+            'get byte data': ["w2@"+self.slave_addr, "0x80", self.index, "r2"],
+            'get string data': ["w2@"+self.slave_addr, "0x81", self.index, "r"+self.string_data_len],
+            'send async request': ["w"+self.n_bytes+"@"+self.slave_addr, "0x82", self.index, self.sent_bytes, self.pec, "r6"],
+            'query async request': ["w2@"+self.slave_addr, "0x83", self.index, "r"+self.n_bytes],
+            'get asping reset': ["w2@"+self.slave_addr, "0x84", self.index, "r38"],
         }
 
     # @note already implemented above def cmd_string_map
@@ -61,7 +70,7 @@ class SMBusWrapper():
     '''
     def prepare_sensor_reading_cmd(self):
         self.cmd.append(self.slave_addr)
-        self.cmd.append(self.sensor_reading_reg_map[self.reg_string] if self.reg_string else self.reg)
+        self.cmd.append(self.sensor_reading_reg_map[self.thermal_reg_string] if self.thermal_reg_string else self.reg)
 
         self.cmd.append("i")
         self.cmd.append("1")
@@ -69,7 +78,7 @@ class SMBusWrapper():
     def prepare_get_mac_counter_cmd(self):
         self.cmd.append("w5@"+self.slave_addr)
         self.cmd.append(self.op_command)
-        self.cmd.append(self.reg_type)
+        self.cmd.append(self.counter_type_string)
         self.cmd.append(self.cgx)
         self.cmd.append(self.lmac)
         self.cmd.append(self.pec)
@@ -79,7 +88,7 @@ class SMBusWrapper():
     def prepare_clear_mac_counter_cmd(self):
         self.cmd.append("w5@"+self.slave_addr)
         self.cmd.append(self.op_command)
-        self.cmd.append(self.reg_type)
+        self.cmd.append(self.counter_type_string)
         self.cmd.append(self.cgx)
         self.cmd.append(self.lmac)
         self.cmd.append(self.pec)
@@ -137,8 +146,25 @@ class SMBusWrapper():
     def parse(self):
         if not self.cmd_string:
             sys.exit("cmd_string must be defined to parse")
-        elif self.cmd_string:
-            pass
+
+        self.raw_response = self.res.stdout.splitlines()[0]
+        self.raw_response_list = self.raw_response.split(' ')
+
+        self.response = dict()
+        for k, v in self.cmd_string_parse_map()[self.cmd_string].items():
+            s = v if type(v) is int else v[0]
+            e = v+1 if type(v) is int else v[1] + 1
+            self.response[k] = self.raw_response_list[s:e]
+            if k == 'op_code':
+                self.response['op_code_descp'] = self.op_code_parse_map[int(self.response[k])]
+
+    def pretty(self, d, indent=1):
+        for key, value in d.items():
+            if isinstance(value, dict):
+                print('    ' * indent + str(key) + ':')
+                self.pretty(value, indent+1)
+            else:
+                print('    ' * (indent) + f"{key}: {value}")
 
     def stringfy(self):
         self.bus = str(self.bus)
@@ -147,23 +173,24 @@ class SMBusWrapper():
         self.cgx = str(self.cgx)
         self.lmac = str(self.lmac)
         self.pec = str(self.pec)
-        self.index = str(self.index)
+        self.index = str(hex(self.index))
         self.string_data_len = str(self.string_data_len)
         self.n_bytes = str(self.n_bytes)
         self.sent_bytes = str(self.sent_bytes)
 
     def run(self, verbose=True, i2c_command='i2cget', bus=3, cmd_string='sensor reading',
-            slave_addr=0x55, reg_string='chip thermal margin', reg=0x00, op_command=0x00,
-            reg_type='', cgx=0, lmac=0, pec=0, index=0, string_data_len=0, n_bytes=0, sent_bytes=0):
+            slave_addr=0x55, thermal_reg_string='chip thermal margin', reg=0x00, op_command=0x00,
+            counter_type_string='rx receive count', cgx=0, lmac=0, pec=0, index=0, string_data_len=0,
+            n_bytes=0, sent_bytes=None):
         self.verbose = verbose
         self.i2c_command = i2c_command
         self.bus = bus
         self.cmd_string = cmd_string
         self.slave_addr = slave_addr
         self.reg = reg
-        self.reg_string = reg_string
+        self.thermal_reg_string = thermal_reg_string
         self.op_command = op_command
-        self.reg_type = reg_type
+        self.counter_type_string = counter_type_string
         self.cgx = cgx
         self.lmac = lmac
         self.pec = pec
@@ -171,6 +198,9 @@ class SMBusWrapper():
         self.string_data_len = string_data_len
         self.n_bytes = n_bytes
         self.sent_bytes = sent_bytes
+        # case for "send async command"
+        if self.sent_bytes and not self.n_bytes:
+            self.n_bytes = len(self.sent_bytes)
 
         self.stringfy()
 
@@ -189,10 +219,24 @@ class SMBusWrapper():
         self.cmd.append(self.bus)
 
         if self.cmd_string:
+            print(self.cmd_string)
             self.cmd.extend(self.cmd_string_map()[self.cmd_string])
             if self.verbose:
                 print(' '.join(self.cmd))
-            self.parse()
+
+        try:
+            #res = subprocess.run(["python", "-c", "\"print(123)\""], capture_output=True, text=True)
+            #res = subprocess.run(["dir"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            self.res = subprocess.run(self.cmd, capture_output=True, text=True)
+            #print(res.stderr)
+            #print("-------------")
+        except subprocess.CalledProcessError as e:
+            print(e.output)
+
+        self.parse()
+
+        if self.verbose:
+            self.pretty(self.response)
 
 
 
