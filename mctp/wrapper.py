@@ -295,63 +295,85 @@ class MCTPWrapper():
 
         }
 
-        self.fixed_val_keys = ['SRC_ID', 'TAG', 'MSG_TYPE', 'MC_ID', 'HeaderRev', 'Rsv', 'IID',
-                               'PacketType', 'Channel']
+        self.mctp_commands = {
+            'set eid to 0x0a': {'payload': "0x80 0x1 0x0 0xa"},
+            'get eid': {'payload': "0x80 0x2"},
+            'set uid': {'payload': "0x80 0x3"},
+            'get version': {'payload': "0x80 0x4 0x0"},
+            'get pldm version support': {'payload': "0x80 0x4 0x1"},
+            'get message type support': {'payload': "0x80 0x5"}
+        }
+
+        """
+         self.mctp_res_parser = {
+            'set eid to 0x0a': {'Rq[7] D[6] IID[4:0]': 3,
+                                'command code': 4,
+                                'completion code': 5,
+                                'data':
+            }
+        }
+        """
+        self.pldm_commands = {}
+
+        self.ncsi_fixed_val_keys = ['SRC_ID', 'TAG', 'MSG_TYPE', 'MC_ID', 'HeaderRev', 'Rsv', 'IID',
+                                    'PacketType', 'Channel']
+
+        self.mctp_fixed_val_keys = ['src_eid', 'tag', 'msg_type', 'Rq[7] D[6] IID[4:0]', 'command code', 'completion code']
 
         self.response = dict()
         self.raw_response = None
         self.raw_response_list = None
 
-        self.ncsi_res_parser = {'dell oem get temperature': {'payloadversion':4 ,
-                                                             'command id':5,
-                                                             'maximum temperature' :6,
-                                                             'current temperature':7},
-
-                                'get version id': {'alpha 2': 7,
-                                                   'firmware name': "8 19",
-                                                   'firmware version': (20, 23),
-                                                   'pci did': (24, 25),
-                                                   'pci vid': (25, 26),
-                                                   'pci ssid': (27, 28),
-                                                   'manufacturer id': (29, 32)}, # TODO string parsing in this example
-                                'dell oem get inventory': {'firmware family version': (8, 11),
-                                                           'type length type': 16,
-                                                           'type length length': 17,
-                                                           'device name': "18 53"},
-                                'dell oem get ext capability': {'capability': (6, 9),
-                                                                'dcb capability': 11,
-                                                                'nic partitioning capability': 12,
-                                                                'e-swtich capability': 13,
-                                                                '# of pci physical functions': 14,
-                                                                '# of pci virtual functions': 15},
-                                'dell oem get part info': {'# of pci physical functions enabled': 6,
-                                                           'partition id': 7,
-                                                           'partition status': (8, 9),
-                                                           'interface name': 10,
-                                                           'length': 11,
-                                                           'interface name': "12 46"},
-                                'dell oem get payload versions': {'supported versions': 7},
-                                'dell oem get os driver version': {'partition id': 6,
-                                                                   'number of active drivers in TLVs':7,
-                                                                   'interface name type':8,
-                                                                   'length':9,
-                                                                   'value':(10, 13)},
-                                'dell oem get interface info': {'interface type': 7,
-                                                                'data field byte 0': 8,
-                                                                'data field byte 1': 9,
-                                                                'data field byte 2': 10,
-                                                                'data field byte 3': 11},
-                                'dell oem get interface sensor': {'status':6,
-                                                                  'identifier':7,
-                                                                  'temp high alarm threshold': (8,9),
-                                                                  'temp high warning threshold': (10, 11),
-                                                                  'temperature value': (12, 13),
-                                                                  'vcc voltage value': (14, 15),
-                                                                  'tx bias current value': (16, 17),
-                                                                  'tx output power value': (18, 19),
-                                                                  'rx input power value': (20, 21),
-                                                                  'flag bytes': (22, 25)}
-                                }
+        self.ncsi_res_parser = {
+            'dell oem get temperature': {'payloadversion':4 ,
+                                         'command id':5,
+                                         'maximum temperature' :6,
+                                         'current temperature':7},
+            'get version id': {'alpha 2': 7,
+                               'firmware name': "8 19",
+                               'firmware version': (20, 23),
+                               'pci did': (24, 25),
+                               'pci vid': (25, 26),
+                               'pci ssid': (27, 28),
+                               'manufacturer id': (29, 32)}, # TODO string parsing in this example
+            'dell oem get inventory': {'firmware family version': (8, 11),
+                                       'type length type': 16,
+                                       'type length length': 17,
+                                       'device name': "18 53"},
+            'dell oem get ext capability': {'capability': (6, 9),
+                                            'dcb capability': 11,
+                                            'nic partitioning capability': 12,
+                                            'e-swtich capability': 13,
+                                            '# of pci physical functions': 14,
+                                            '# of pci virtual functions': 15},
+            'dell oem get part info': {'# of pci physical functions enabled': 6,
+                                       'partition id': 7,
+                                       'partition status': (8, 9),
+                                       'interface name': 10,
+                                       'length': 11,
+                                       'interface name': "12 46"},
+            'dell oem get payload versions': {'supported versions': 7},
+            'dell oem get os driver version': {'partition id': 6,
+                                               'number of active drivers in TLVs':7,
+                                               'interface name type':8,
+                                               'length':9,
+                                               'value':(10, 13)},
+            'dell oem get interface info': {'interface type': 7,
+                                            'data field byte 0': 8,
+                                            'data field byte 1': 9,
+                                            'data field byte 2': 10,
+                                            'data field byte 3': 11},
+            'dell oem get interface sensor': {'status':6,
+                                              'identifier':7,
+                                              'temp high alarm threshold': (8,9),
+                                              'temp high warning threshold': (10, 11),
+                                              'temperature value': (12, 13),
+                                              'vcc voltage value': (14, 15),
+                                              'tx bias current value': (16, 17),
+                                              'tx output power value': (18, 19),
+                                              'rx input power value': (20, 21),
+                                              'flag bytes': (22, 25)}
+        }
 
 
         """
@@ -427,6 +449,12 @@ class MCTPWrapper():
         self.packet_header.extend(self.parsed_pay_len)        # PAYLOAD_LEN[12:8], PAYLOAD_LEN[7:0]
         self.packet_header.extend(["0"] * 8)                  # RSVD[63:0]
 
+    def prep_mctp_header(self):
+        self.packet_header = list()
+
+    def prep_pldm_header(self):
+        self.packet_header = list()
+
     def print_sent(self):
         self.sent = dict()
 
@@ -463,6 +491,7 @@ class MCTPWrapper():
         self.bus                 = bus
         self.dst_eid             = dst_eid
         self.msg_type            = msg_type
+        self.msg_type_str        = msg_type
         self.slave_addr          = slave_addr
         self.mc_id               = mc_id
         self.hrd_rv              = hrd_rv
@@ -472,7 +501,7 @@ class MCTPWrapper():
         self.pay_len             = pay_len
 
         # override variables if cmd_string is defined
-        if ncsi_cmdstring in self.ncsi_commands:
+        if self.msg_type == 'NCSI' and ncsi_cmdstring in self.ncsi_commands:
             for k in self.ncsi_commands[ncsi_cmdstring]:
                 setattr(self, k, self.ncsi_commands[ncsi_cmdstring][k])
 
@@ -495,11 +524,18 @@ class MCTPWrapper():
         cmd.extend([self.bus, self.dst_eid, self.msg_type])
 
         # prepare header
-        if int(self.msg_type) == self.msg_type_keys['NCSI']:
+        if self.msg_type_str == 'NCSI':
             self.prep_ncsi_header()
+        elif self.msg_type_str == 'MCTP':
+            self.prep_mctp_header()
+        elif self.msg_type_str == 'PLDM':
+            self.prep_pldm_header()
+        else:
+            sys.exit("wrong or unsupported msg_type")
 
-        # add NCSI packet header
-        cmd.extend(self.packet_header)
+        # add (NCSI) packet header
+        if self.msg_type_str == 'NCSI':
+            cmd.extend(self.packet_header)
 
         # payload
         if self.payload:
@@ -510,17 +546,20 @@ class MCTPWrapper():
                 self.payload = ["0"] * self.pay_len
                 cmd.extend(self.payload)
 
-        # payload padding
-        cmd.extend(['0']*self.payload_padding_len)
+        # payload padding for NCSI
+        if self.msg_type_str == 'NCSI':
+            cmd.extend(['0']*self.payload_padding_len)
 
-        # checksum
-        cmd.extend(self.checksum.split(' '))
+        # checksum for NCSI
+        if self.msg_type_str == 'NCSI':
+            cmd.extend(self.checksum.split(' '))
 
         if verbose:
             print()
 
-            if ncsi_cmdstring in self.ncsi_commands:
-                print("Running Example:", ncsi_cmdstring)
+            if int(self.msg_type) == self.msg_type_keys['NCSI'] and ncsi_cmdstring in self.ncsi_commands:
+                print("Running NCSI Example:", ncsi_cmdstring)
+            #elif mctp_cmdstring in self.mctp_
 
             print("Excuting: " + " ".join(cmd))
             print("Command sent:")
@@ -535,9 +574,16 @@ class MCTPWrapper():
         except subprocess.CalledProcessError as e:
             print(e.output)
 
-        self.parse()
+        if int(self.msg_type) == self.msg_type_keys['NCSI']:
+            self.parse_ncsi()
+        elif int(self.msg_type) == self.msg_type_keys['MCTP']:
+            self.parse_mctp()
 
-    def parse(self):
+        if self.verbose:
+            print("Response:")
+            self.pretty(self.response)
+
+    def parse_ncsi(self):
         self.response = dict()
 
         # get raw reponse line
@@ -554,8 +600,8 @@ class MCTPWrapper():
 
         # assign MC_ID, HDR_RV, .... PAYLOAD_LEN, single byte vals
         for i, val in enumerate(self.raw_response_list):
-            if i < len(self.fixed_val_keys):
-                self.response[self.fixed_val_keys[i]] = val
+            if i < len(self.ncsi_fixed_val_keys):
+                self.response[self.ncsi_fixed_val_keys[i]] = val
             else:
                 break
 
@@ -580,10 +626,31 @@ class MCTPWrapper():
                 else:
                     self.response['NCSI Payload Parser'][k] = self.response['Payload'][s:e]
 
-        if self.verbose:
-            print("Response:")
-            self.pretty(self.response)
 
+
+    def parse_mctp(self):
+        self.response = dict()
+        self.response = dict()
+
+        # get raw reponse line
+        response_lines = self.res.stdout.splitlines()
+
+        for i, l in enumerate(response_lines):
+            if "raw response" in l:
+                self.raw_response = response_lines[i+1]
+                break
+
+        if not self.raw_response:
+            sys.exit("Command failed to have a raw reponse in stdout")
+        self.raw_response_list = self.raw_response.split(' ')
+
+        for i, val in enumerate(self.raw_response_list):
+            if i < len(self.mctp_fixed_val_keys):
+                self.response[self.mctp_fixed_val_keys[i]] = val
+            else:
+                break
+
+        self.response['response data'] = self.raw_response_list[i:]
 
 
     def verify(self):
@@ -612,7 +679,7 @@ if __name__ == "__main__":
                         type=str, required=False)
     args = vars(parser.parse_args())
 
-    if args['wrapper'] == 'NCSI':
+    if args['wrapper'] in ('NCSI', 'MCTP', 'PLDM'):
         args.pop('wrapper')
         m = MCTPWrapper()
         if args['test']:
