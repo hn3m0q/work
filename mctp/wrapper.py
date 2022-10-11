@@ -489,7 +489,7 @@ class MCTPWrapper():
 
     def stringfy(self):
         self.bus = str(self.bus)
-        self.dst_eid = str(self.dst_eid)
+        self.dst_eid = str(hex(self.dst_eid))
         self.msg_type = str(self.msg_type_keys[self.msg_type])
         self.slave_addr = str(hex(self.slave_addr))
         self.mc_id = str(self.mc_id)
