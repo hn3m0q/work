@@ -711,8 +711,8 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
 
     if args['wrapper'] in ('NCSI', 'MCTP', 'PLDM'):
-        args.pop('wrapper')
         args['msg_type'] = args['wrapper']
+        args.pop('wrapper')
         m = MCTPWrapper()
         if args['test']:
             m.runall(args)
