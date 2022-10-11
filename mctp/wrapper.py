@@ -147,6 +147,8 @@ class SMBusWrapper():
             sys.exit("smbus_cmdstring must be defined to parse")
 
         self.raw_response = self.res.stdout.splitlines()[0]
+        if self.verbose:
+            print("raw response:", self.raw_response)
         self.raw_response_list = self.raw_response.split(' ')
 
         # "sensor reading" gives one more heading "1: 0xXX"
@@ -240,6 +242,7 @@ class SMBusWrapper():
         self.parse()
 
         if self.verbose:
+            print("parsed response:")
             self.pretty(self.response)
 
 
