@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys
 import subprocess
 import argparse
@@ -33,6 +33,7 @@ class SMBusWrapper():
         }
 
     def cmd_string_parse_map(self):
+        # TODO: get string data, the return type is not the same as doc
         return {
             'sensor reading': {'temperature': 1},
             'get mac counter': {'op_code': 0, 'counters': (1, 6), 'pec': 7},
