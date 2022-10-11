@@ -462,14 +462,20 @@ class MCTPWrapper():
     def print_sent(self):
         self.sent = dict()
 
-        self.sent['mc_id'] = self.mc_id
-        self.sent['hrd_rv'] = self.hrd_rv
-        self.sent['iid'] = self.iid
-        self.sent['command'] = self.command
-        self.sent['channel_id'] = self.channel_id
-        self.sent['pay_len'] = self.parsed_pay_len
-        self.sent['payload'] = self.payload
-        self.sent['checksum'] = self.checksum
+        if self.msg_type_str ==  'NCSI':
+            self.sent['mc_id'] = self.mc_id
+            self.sent['hrd_rv'] = self.hrd_rv
+            self.sent['iid'] = self.iid
+            self.sent['command'] = self.command
+            self.sent['channel_id'] = self.channel_id
+            self.sent['pay_len'] = self.parsed_pay_len
+            self.sent['payload'] = self.payload
+            self.sent['checksum'] = self.checksum
+        elif self.msg_type_str ==  'MCTP':
+            self.sent['bus'] = self.bus
+            self.sent['dst_eid'] = self.dst_eid
+            self.sent['msg_type'] = self.msg_type
+            self.sent['payload'] = self.payload
 
         self.pretty(self.sent)
 
