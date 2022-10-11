@@ -674,7 +674,7 @@ if __name__ == "__main__":
     parser.add_argument('-w', '--wrapper', help='Which wrapper to use', required=True)
     parser.add_argument('-v', '--verbose', help='Verbose', action='store_true')
 
-    if sys.argv[sys.argv.index('-w') + 1] == 'NCSI':
+    if sys.argv[sys.argv.index('-w') + 1] in ('NCSI', 'MCTP', 'PLDM'):
         parser.add_argument('-t', '--test', help='Test all NCSI commands', action='store_true')
         parser.add_argument('--bus', help='', type=int, default=3, required=False)
         parser.add_argument('--dst_eid', help='mctp-util dst_eid', type=int, default=0, required=False)
