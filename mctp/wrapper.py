@@ -180,7 +180,6 @@ class SMBusWrapper():
         self.lmac = str(self.lmac)
         self.pec = str(self.pec)
         self.index = str(hex(self.index))
-        self.string_data_len = str(self.string_data_len)
         self.n_bytes = str(self.n_bytes)
         self.sent_bytes = str(self.sent_bytes)
 
