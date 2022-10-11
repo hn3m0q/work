@@ -160,7 +160,7 @@ class SMBusWrapper():
             e = v+1 if type(v) is int else v[1] + 1
             self.response[k] = self.raw_response_list[s:e]
             if k == 'op_code':
-                self.response['op_code_descp'] = self.op_code_parse_map[int(self.response[k])]
+                self.response['op_code_descp'] = self.op_code_parse_map[int(self.response[k][0])]
 
     def pretty(self, d, indent=1):
         for key, value in d.items():
