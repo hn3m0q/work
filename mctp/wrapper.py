@@ -149,6 +149,11 @@ class SMBusWrapper():
         self.raw_response = self.res.stdout.splitlines()[0]
         self.raw_response_list = self.raw_response.split(' ')
 
+        # "sensor reading" gives one more heading "1: 0xXX"
+        # remove that "1:"
+        if self.cmd_string == 'sensor reading':
+            self.raw_response_list = self.raw_response_list[1:]
+
         self.response = dict()
         for k, v in self.cmd_string_parse_map()[self.cmd_string].items():
             s = v if type(v) is int else v[0]
@@ -167,8 +172,8 @@ class SMBusWrapper():
 
     def stringfy(self):
         self.bus = str(self.bus)
-        self.slave_addr = str(self.slave_addr)
-        self.reg = str(self.reg)
+        self.slave_addr = str(hex(self.slave_addr))
+        self.reg = str(hex(self.reg))
         self.cgx = str(self.cgx)
         self.lmac = str(self.lmac)
         self.pec = str(self.pec)
