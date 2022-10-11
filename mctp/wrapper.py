@@ -57,7 +57,7 @@ class SMBusWrapper():
             'get ras record': ["w1@"+self.slave_addr, "0x60", "r160"],
             'get ras record count': ["w1@"+self.slave_addr, "0x61", "r2"],
             'get byte data': ["w2@"+self.slave_addr, "0x80", self.index, "r2"],
-            'get string data': ["w2@"+self.slave_addr, "0x81", self.index, "r"+self.string_data_len],
+            'get string data': ["w2@"+self.slave_addr, "0x81", self.index, "r"+self.n_bytes],
             'send async request': ["w"+self.n_bytes+"@"+self.slave_addr, "0x82", self.index, self.sent_bytes, self.pec, "r6"],
             'query async request': ["w2@"+self.slave_addr, "0x83", self.index, "r"+self.n_bytes],
             'get asping reset': ["w2@"+self.slave_addr, "0x84", self.index, "r38"],
@@ -186,7 +186,7 @@ class SMBusWrapper():
 
     def run(self, verbose=True, i2c_command=None, bus=3, smbus_cmdstring='sensor reading',
             slave_addr=0x55, thermal_reg_string='chip thermal margin', reg=0x00, op_command=0x00,
-            counter_type_string='rx receive count', cgx=0, lmac=0, pec=0, index=0, string_data_len=0,
+            counter_type_string='rx receive count', cgx=0, lmac=0, pec=0, index=0,
             n_bytes=0, sent_bytes=None):
         self.verbose = verbose
         self.i2c_command = i2c_command
@@ -201,7 +201,6 @@ class SMBusWrapper():
         self.lmac = lmac
         self.pec = pec
         self.index = index
-        self.string_data_len = string_data_len
         self.n_bytes = n_bytes
         self.sent_bytes = sent_bytes
         # case for "send async command"
@@ -704,7 +703,6 @@ if __name__ == "__main__":
         parser.add_argument('--lmac', help='LMAC', type=int, default=0, required=False)
         parser.add_argument('--pec', help='PEC', type=int, default=0, required=False)
         parser.add_argument('--index', help='INDEX', type=int, default=0, required=False)
-        parser.add_argument('--string_data_len', help='string data len for "get string data" in SMBus', type=int, default=0, required=False)
         parser.add_argument('--n_bytes', help='number of bytes to send or receive for SMBus', type=int, default=0, required=False)
         parser.add_argument('--sent_bytes', help='bytes string to send for SMBus', type=str, default=None, required=False)
 
