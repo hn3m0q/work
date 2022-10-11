@@ -302,10 +302,19 @@ class MCTPWrapper():
         self.mctp_commands = {
             'set eid to 0x0a': {'payload': "0x80 0x1 0x0 0xa"},
             'get eid': {'payload': "0x80 0x2"},
-            'set uid': {'payload': "0x80 0x3"},
+            'get uuid': {'payload': "0x80 0x3"},
             'get version': {'payload': "0x80 0x4 0x0"},
             'get pldm version support': {'payload': "0x80 0x4 0x1"},
             'get message type support': {'payload': "0x80 0x5"}
+        }
+
+        self.pldm_commands = {
+            'get pldm version type 0': {'tag': 0x0a, 'payload': "0x80 0 3 0 0 0 0 1 0"},
+            'get pldm version type 1': {'tag': 0x0a, 'payload': "0x80 0 3 0 0 0 0 1 2"},
+            'get pldm type': {'tag': 0x0a, 'payload': "0x80 0 4"},
+            # TODO: this one doesnt run and has typo in doc
+            #'get pldm commands type 0': {'payload': "0x80 0x4 0x0"},
+            'get pldm commands type 2 pmc': {'tag': 0x0a, 'payload': "0x80 0 5 2 0 0xf1 0xf1 0xf1"},
         }
 
         """
@@ -317,7 +326,6 @@ class MCTPWrapper():
             }
         }
         """
-        self.pldm_commands = {}
 
         self.ncsi_fixed_val_keys = ['SRC_ID', 'TAG', 'MSG_TYPE', 'MC_ID', 'HeaderRev', 'Rsv', 'IID',
                                     'PacketType', 'Channel']
@@ -591,9 +599,12 @@ class MCTPWrapper():
         except subprocess.CalledProcessError as e:
             print(e.output)
 
-        if int(self.msg_type) == self.msg_type_keys['NCSI']:
+        if self.msg_type_str == 'NCSI':
             self.parse_ncsi()
-        elif int(self.msg_type) == self.msg_type_keys['MCTP']:
+        elif self.msg_type_str == 'MCTP':
+            self.parse_mctp()
+        elif self.msg_type_str == 'PLDM':
+            # parse pldm is the same as parse mctp
             self.parse_mctp()
 
         if self.verbose:
