@@ -65,7 +65,7 @@ class SMBusWrapper():
 
     # @note already implemented above def cmd_string_map
     # all the prepare functions could be replaced by a single dict of lists that tells the sequence
-    # to write for each cmd_string, but wN@slave_addr makes it not ideal and bothering to implement
+    # to write for each smbus_cmdstring, but wN@slave_addr makes it not ideal and bothering to implement
     '''
     def prepare_sensor_reading_cmd(self):
         self.cmd.append(self.slave_addr)
@@ -143,19 +143,19 @@ class SMBusWrapper():
         self.cmd.append("r38")
     '''
     def parse(self):
-        if not self.cmd_string:
-            sys.exit("cmd_string must be defined to parse")
+        if not self.smbus_cmdstring:
+            sys.exit("smbus_cmdstring must be defined to parse")
 
         self.raw_response = self.res.stdout.splitlines()[0]
         self.raw_response_list = self.raw_response.split(' ')
 
         # "sensor reading" gives one more heading "1: 0xXX"
         # remove that "1:"
-        # if self.cmd_string == 'sensor reading':
+        # if self.smbus_cmdstring == 'sensor reading':
         #    self.raw_response_list = self.raw_response_list[1:]
 
         self.response = dict()
-        for k, v in self.cmd_string_parse_map()[self.cmd_string].items():
+        for k, v in self.cmd_string_parse_map()[self.smbus_cmdstring].items():
             s = v if type(v) is int else v[0]
             e = v+1 if type(v) is int else v[1] + 1
             self.response[k] = self.raw_response_list[s:e]
@@ -182,14 +182,14 @@ class SMBusWrapper():
         self.n_bytes = str(self.n_bytes)
         self.sent_bytes = str(self.sent_bytes)
 
-    def run(self, verbose=True, i2c_command='i2cget', bus=3, cmd_string='sensor reading',
+    def run(self, verbose=True, i2c_command='i2cget', bus=3, smbus_cmdstring='sensor reading',
             slave_addr=0x55, thermal_reg_string='chip thermal margin', reg=0x00, op_command=0x00,
             counter_type_string='rx receive count', cgx=0, lmac=0, pec=0, index=0, string_data_len=0,
             n_bytes=0, sent_bytes=None):
         self.verbose = verbose
         self.i2c_command = i2c_command
         self.bus = bus
-        self.cmd_string = cmd_string
+        self.smbus_cmdstring = smbus_cmdstring
         self.slave_addr = slave_addr
         self.reg = reg
         self.thermal_reg_string = thermal_reg_string
@@ -211,9 +211,9 @@ class SMBusWrapper():
         if self.i2c_command:
             self.cmd = [self.i2c_command]
         else:
-            if self.cmd_string == None:
-                sys.exit('i2c_command must be defined, or define cmd_string')
-            elif self.cmd_string == 'get sensor reading':
+            if self.smbus_cmdstring == None:
+                sys.exit('i2c_command must be defined, or define smbus_cmdstring')
+            elif self.smbus_cmdstring == 'get sensor reading':
                 self.cmd = ['i2cget']
             else:
                 self.cmd = ['i2ctransfer']
@@ -222,9 +222,9 @@ class SMBusWrapper():
 
         self.cmd.append(self.bus)
 
-        if self.cmd_string:
-            print(self.cmd_string)
-            self.cmd.extend(self.cmd_string_map()[self.cmd_string])
+        if self.smbus_cmdstring:
+            print(self.smbus_cmdstring)
+            self.cmd.extend(self.cmd_string_map()[self.smbus_cmdstring])
             if self.verbose:
                 print(' '.join(self.cmd))
 
@@ -507,7 +507,7 @@ class MCTPWrapper():
 
         self.ncsi_cmdstring = ncsi_cmdstring
 
-        # override variables if cmd_string is defined
+        # override variables if cmdstring is defined
         if self.msg_type == 'NCSI' and self.ncsi_cmdstring in self.ncsi_commands:
             for k in self.ncsi_commands[self.ncsi_cmdstring]:
                 setattr(self, k, self.ncsi_commands[self.ncsi_cmdstring][k])
@@ -669,21 +669,42 @@ if __name__ == "__main__":
     #       both command line and python api behave the same
     parser.add_argument('-w', '--wrapper', help='Which wrapper to use', required=True)
     parser.add_argument('-v', '--verbose', help='Verbose', action='store_true')
-    parser.add_argument('-t', '--test', help='Test all NCSI commands', action='store_true')
-    parser.add_argument('--bus', help='', type=int, default=3, required=False)
-    parser.add_argument('--dst_eid', help='', type=int, default=0, required=False)
-    parser.add_argument('--msg_type', help='', type=str, default='NCSI', required=False)
-    parser.add_argument('--cml_decode_response', help='-d tag for mctp-util', type=bool, default=True, required=False)
-    parser.add_argument('--slave_addr', help='Slave address', type=int, default=0x55, required=False)
-    parser.add_argument('--mc_id', help='MC ID', type=int, default=0, required=False)
-    parser.add_argument('--hrd_rv', help='Header revision', type=int, default=1, required=False)
-    parser.add_argument('--iid', help='IID', type=int, default=1, required=False)
-    parser.add_argument('--command', help='', type=int, default=0, required=False)
-    parser.add_argument('--channel_id', help='', type=int, default=0, required=False)
-    parser.add_argument('--pay_len', help='', type=int, default=0, required=False)
-    parser.add_argument('--payload', help='', type=str, default=None, required=False)
-    parser.add_argument('--ncsi_cmdstring', help='A NCSI command string that fills values automatically',
-                        type=str, required=False)
+
+    if sys.argv[sys.argv.index('-w') + 1] == 'NCSI':
+        parser.add_argument('-t', '--test', help='Test all NCSI commands', action='store_true')
+        parser.add_argument('--bus', help='', type=int, default=3, required=False)
+        parser.add_argument('--dst_eid', help='mctp-util dst_eid', type=int, default=0, required=False)
+        parser.add_argument('--msg_type', help='', type=str, default='NCSI', required=False)
+        parser.add_argument('--cml_decode_response', help='-d tag for mctp-util', type=bool, default=True, required=False)
+        parser.add_argument('--slave_addr', help='Slave address', type=int, default=0x55, required=False)
+        parser.add_argument('--mc_id', help='MC ID', type=int, default=0, required=False)
+        parser.add_argument('--hrd_rv', help='Header revision', type=int, default=1, required=False)
+        parser.add_argument('--iid', help='IID', type=int, default=1, required=False)
+        parser.add_argument('--command', help='', type=int, default=0, required=False)
+        parser.add_argument('--channel_id', help='', type=int, default=0, required=False)
+        parser.add_argument('--pay_len', help='', type=int, default=0, required=False)
+        parser.add_argument('--payload', help='', type=str, default=None, required=False)
+        parser.add_argument('--ncsi_cmdstring', help='A NCSI command string that fills values automatically',
+                            type=str, required=False)
+
+    if sys.argv[sys.argv.index('-w') + 1] == 'SMBus':
+        parser.add_argument('--i2c_command', help='which i2c command to use for SMBus, e.g. i2cget or i2ctransfer', type=str, default='i2cget', required=False)
+        parser.add_argument('--bus', help='', type=int, default=3, required=False)
+        parser.add_argument('--slave_addr', help='Slave address', type=int, default=0x55, required=False)
+        parser.add_argument('--smbus_cmdstring', help='An SMBus command string that fills values automatically', type=str, default='sensor reading', required=False)
+        parser.add_argument('--thermal_reg_string', help='a string that defines which thermal reg to use for SMBus', type=str, default='chip thermal margin', required=False)
+        parser.add_argument('--reg', help='defines which reg to use instead of using string for SMBus', type=int, default=0x00, required=False)
+        parser.add_argument('--op_command', help='op command for SMBus', type=int, default=0x00, required=False)
+
+        parser.add_argument('--counter_type_string', help='counter type string for mac counter in SMBus command', type=str, default='rx receive count', required=False)
+        parser.add_argument('--cgx', help='CGX', type=int, default=0, required=False)
+        parser.add_argument('--lmac', help='LMAC', type=int, default=0, required=False)
+        parser.add_argument('--pec', help='PEC', type=int, default=0, required=False)
+        parser.add_argument('--index', help='INDEX', type=int, default=0, required=False)
+        parser.add_argument('--string_data_len', help='string data len for "get string data" in SMBus', type=int, default=0, required=False)
+        parser.add_argument('--n_bytes', help='number of bytes to send or receive for SMBus', type=int, default=0, required=False)
+        parser.add_argument('--sent_bytes', help='bytes string to send for SMBus', type=str, default=None, required=False)
+
     args = vars(parser.parse_args())
 
     if args['wrapper'] in ('NCSI', 'MCTP', 'PLDM'):
@@ -697,4 +718,7 @@ if __name__ == "__main__":
     elif args['wrapper'] == 'SMBus':
         args.pop('wrapper')
         w = SMBusWrapper()
-        w.run()
+        w.run(verbose=True, i2c_command='i2cget', bus=3, smbus_cmdstring='sensor reading',
+            slave_addr=0x55, thermal_reg_string='chip thermal margin', reg=0x00, op_command=0x00,
+            counter_type_string='rx receive count', cgx=0, lmac=0, pec=0, index=0, string_data_len=0,
+            n_bytes=0, sent_bytes=None)
