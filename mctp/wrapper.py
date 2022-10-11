@@ -37,12 +37,12 @@ class SMBusWrapper():
             'sensor reading': {},
             'get mac counter': {'op_code': 0, 'counters': (1, 6), 'pec': 7},
             'clear mac counter': {'op_code': 0, 'pec': 1},
-            'get ras record': {'op_code': 0, 'time': (1, 4), 'message length': 5, 'message': (6, self.n_bytes), 'pec': 7},
+            'get ras record': {'op_code': 0, 'time': (1, 4), 'message length': 5, 'message': (6, int(self.n_bytes)), 'pec': 7},
             'get ras record count': {'op_code': 0, 'record numbers': 1},
             'get byte data': {'index': 0, 'byte_data': 1},
-            'get string data': {'index': 0, 'bytes': (1, self.n_bytes), 'pec':self.n_bytes+1},
+            'get string data': {'index': 0, 'bytes': (1, int(self.n_bytes)), 'pec':int(self.n_bytes)+1},
             'send async request': {'op_code': 0, 'sequence': 1, 'exp_time': (2, 3)},
-            'query async request': {'op_code': 0, 'sequence': 1, 'bytes': (3, 3+self.n_bytes), 'pec': 3+self.n_bytes+1},
+            'query async request': {'op_code': 0, 'sequence': 1, 'bytes': (3, 3+int(self.n_bytes)), 'pec': 3+int(self.n_bytes)+1},
             'get asping reset': {'op_code': 0, 'send_probes': 1, 'send broadcast': 2, 'received response':3,
                                  'target ip': (4, 7), 'source ip': (8, 11), 'device name': (12, 27), 'mac addr': (28, 33), 'time': (34, 37)}
         }
