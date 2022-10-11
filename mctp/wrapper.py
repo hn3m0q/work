@@ -718,7 +718,8 @@ if __name__ == "__main__":
     elif args['wrapper'] == 'SMBus':
         args.pop('wrapper')
         w = SMBusWrapper()
-        w.run(verbose=True, i2c_command='i2cget', bus=3, smbus_cmdstring='sensor reading',
-            slave_addr=0x55, thermal_reg_string='chip thermal margin', reg=0x00, op_command=0x00,
-            counter_type_string='rx receive count', cgx=0, lmac=0, pec=0, index=0, string_data_len=0,
-            n_bytes=0, sent_bytes=None)
+        w.run(args)
+        # w.run(verbose=True, i2c_command='i2cget', bus=3, smbus_cmdstring='sensor reading',
+        #     slave_addr=0x55, thermal_reg_string='chip thermal margin', reg=0x00, op_command=0x00,
+        #     counter_type_string='rx receive count', cgx=0, lmac=0, pec=0, index=0, string_data_len=0,
+        #     n_bytes=0, sent_bytes=None)
