@@ -528,6 +528,9 @@ class MCTPWrapper():
         elif self.msg_type == 'MCTP' and self.ncsi_cmdstring in self.mctp_commands:
             for k in self.mctp_commands[self.ncsi_cmdstring]:
                 setattr(self, k, self.mctp_commands[self.ncsi_cmdstring][k])
+        elif self.msg_type == 'PLDM' and self.ncsi_cmdstring in self.pldm_commands:
+            for k in self.pldm_commands[self.ncsi_cmdstring]:
+                setattr(self, k, self.pldm_commands[self.ncsi_cmdstring][k])
 
         # all self attrs are string based for subprocess.run(), multi-byte attrs are list of strings
         self.stringfy()
