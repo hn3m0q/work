@@ -499,10 +499,13 @@ class MCTPWrapper():
         self.channel_id          = channel_id
         self.pay_len             = pay_len
 
+
+        self.ncsi_cmdstring = ncsi_cmdstring
+
         # override variables if cmd_string is defined
-        if self.msg_type == 'NCSI' and ncsi_cmdstring in self.ncsi_commands:
-            for k in self.ncsi_commands[ncsi_cmdstring]:
-                setattr(self, k, self.ncsi_commands[ncsi_cmdstring][k])
+        if self.msg_type == 'NCSI' and self.ncsi_cmdstring in self.ncsi_commands:
+            for k in self.ncsi_commands[self.ncsi_cmdstring]:
+                setattr(self, k, self.ncsi_commands[self.ncsi_cmdstring][k])
 
         # all self attrs are string based for subprocess.run(), multi-byte attrs are list of strings
         self.stringfy()
@@ -556,8 +559,8 @@ class MCTPWrapper():
         if verbose:
             print()
 
-            if int(self.msg_type) == self.msg_type_keys['NCSI'] and ncsi_cmdstring in self.ncsi_commands:
-                print("Running NCSI Example:", ncsi_cmdstring)
+            if int(self.msg_type) == self.msg_type_keys['NCSI'] and self.ncsi_cmdstring in self.ncsi_commands:
+                print("Running NCSI Example:", self.ncsi_cmdstring)
             #elif mctp_cmdstring in self.mctp_
 
             print("Excuting: " + " ".join(cmd))
