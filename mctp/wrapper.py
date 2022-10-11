@@ -34,7 +34,7 @@ class SMBusWrapper():
 
     def cmd_string_parse_map(self):
         return {
-            'sensor reading': {},
+            'sensor reading': {'temperature': 1},
             'get mac counter': {'op_code': 0, 'counters': (1, 6), 'pec': 7},
             'clear mac counter': {'op_code': 0, 'pec': 1},
             'get ras record': {'op_code': 0, 'time': (1, 4), 'message length': 5, 'message': (6, int(self.n_bytes)), 'pec': 7},
@@ -151,8 +151,8 @@ class SMBusWrapper():
 
         # "sensor reading" gives one more heading "1: 0xXX"
         # remove that "1:"
-        if self.cmd_string == 'sensor reading':
-            self.raw_response_list = self.raw_response_list[1:]
+        # if self.cmd_string == 'sensor reading':
+        #    self.raw_response_list = self.raw_response_list[1:]
 
         self.response = dict()
         for k, v in self.cmd_string_parse_map()[self.cmd_string].items():
