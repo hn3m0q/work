@@ -309,12 +309,12 @@ class MCTPWrapper():
         }
 
         self.pldm_commands = {
-            'get pldm version type 0': {'tag': 0x0a, 'payload': "0x80 0 3 0 0 0 0 1 0"},
-            'get pldm version type 1': {'tag': 0x0a, 'payload': "0x80 0 3 0 0 0 0 1 2"},
-            'get pldm type': {'tag': 0x0a, 'payload': "0x80 0 4"},
+            'get pldm version type 0': {'dst_eid': 0x0a, 'payload': "0x80 0 3 0 0 0 0 1 0"},
+            'get pldm version type 1': {'dst_eid': 0x0a, 'payload': "0x80 0 3 0 0 0 0 1 2"},
+            'get pldm type': {'dst_eid': 0x0a, 'payload': "0x80 0 4"},
             # TODO: this one doesnt run and has typo in doc
             #'get pldm commands type 0': {'payload': "0x80 0x4 0x0"},
-            'get pldm commands type 2 pmc': {'tag': 0x0a, 'payload': "0x80 0 5 2 0 0xf1 0xf1 0xf1"},
+            'get pldm commands type 2 pmc': {'dst_eid': 0x0a, 'payload': "0x80 0 5 2 0 0xf1 0xf1 0xf1"},
         }
 
         """
