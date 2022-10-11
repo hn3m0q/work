@@ -712,6 +712,7 @@ if __name__ == "__main__":
 
     if args['wrapper'] in ('NCSI', 'MCTP', 'PLDM'):
         args.pop('wrapper')
+        args['msg_type'] = args['wrapper']
         m = MCTPWrapper()
         if args['test']:
             m.runall(args)
