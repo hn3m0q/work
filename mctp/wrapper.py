@@ -244,8 +244,6 @@ class SMBusWrapper():
             print("parsed response:")
             self.pretty(self.response)
 
-
-
 class MCTPWrapper():
     def __init__(self):
         self.mc_id = None
@@ -513,6 +511,9 @@ class MCTPWrapper():
         if self.msg_type == 'NCSI' and self.ncsi_cmdstring in self.ncsi_commands:
             for k in self.ncsi_commands[self.ncsi_cmdstring]:
                 setattr(self, k, self.ncsi_commands[self.ncsi_cmdstring][k])
+        elif self.msg_type == 'MCTP' and self.ncsi_cmdstring in self.mctp_commands:
+            for k in self.mctp_commands[self.ncsi_cmdstring]:
+                setattr(self, k, self.mctp_commands[self.ncsi_cmdstring][k])
 
         # all self attrs are string based for subprocess.run(), multi-byte attrs are list of strings
         self.stringfy()
@@ -535,12 +536,12 @@ class MCTPWrapper():
         # prepare header
         if self.msg_type_str == 'NCSI':
             self.prep_ncsi_header()
-        elif self.msg_type_str == 'MCTP':
-            self.prep_mctp_header()
-        elif self.msg_type_str == 'PLDM':
-            self.prep_pldm_header()
-        else:
-            sys.exit("wrong or unsupported msg_type")
+        # elif self.msg_type_str == 'MCTP':
+        #     self.prep_mctp_header()
+        # elif self.msg_type_str == 'PLDM':
+        #     self.prep_pldm_header()
+        # else:
+        #     sys.exit("wrong or unsupported msg_type")
 
         # add (NCSI) packet header
         if self.msg_type_str == 'NCSI':
@@ -566,9 +567,10 @@ class MCTPWrapper():
         if verbose:
             print()
 
-            if int(self.msg_type) == self.msg_type_keys['NCSI'] and self.ncsi_cmdstring in self.ncsi_commands:
+            if self.msg_type_str == 'NCSI' and self.ncsi_cmdstring in self.ncsi_commands:
                 print("Running NCSI Example:", self.ncsi_cmdstring)
-            #elif mctp_cmdstring in self.mctp_
+            elif self.msg_type_str == 'MCTP' and self.ncsi_cmdstring in self.mctp_commands:
+                print("Running MCTP Example:", self.ncsi_cmdstring)
 
             print("Excuting: " + " ".join(cmd))
             print("Command sent:")
