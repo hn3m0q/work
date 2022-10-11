@@ -1,8 +1,7 @@
-
+#!/bin/usr/python3
 import sys
 import subprocess
 import argparse
-from xmlrpc.server import CGIXMLRPCRequestHandler
 
 class SMBusWrapper():
     def __init__(self):
