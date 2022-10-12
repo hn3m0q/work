@@ -608,10 +608,10 @@ class MCTPWrapper():
         if self.msg_type_str == 'NCSI':
             self.parse_ncsi()
         elif self.msg_type_str == 'MCTP':
-            self.parse_mctp()
+            self.parse_mctp_pldm()
         elif self.msg_type_str == 'PLDM':
             # parse pldm is the same as parse mctp
-            self.parse_mctp()
+            self.parse_mctp_pldm()
 
         if self.verbose:
             print("Response:")
@@ -662,8 +662,7 @@ class MCTPWrapper():
 
 
 
-    def parse_mctp(self):
-        self.response = dict()
+    def parse_mctp_ncsi(self):
         self.response = dict()
 
         # get raw reponse line
@@ -678,11 +677,18 @@ class MCTPWrapper():
             sys.exit("Command failed to have a raw reponse in stdout")
         self.raw_response_list = self.raw_response.split(' ')
 
-        for i, val in enumerate(self.raw_response_list):
-            if i < len(self.mctp_fixed_val_keys):
-                self.response[self.mctp_fixed_val_keys[i]] = val
-            else:
-                break
+        if self.msg_type_str == 'MCTP':
+            for i, val in enumerate(self.raw_response_list):
+                if i < len(self.mctp_fixed_val_keys):
+                    self.response[self.mctp_fixed_val_keys[i]] = val
+                else:
+                    break
+        elif self.msg_type_str == 'PLDM':
+            for i, val in enumerate(self.raw_response_list):
+                if i < len(self.pldm_fixed_val_keys):
+                    self.response[self.pldm_fixed_val_keys[i]] = val
+                else:
+                    break
 
         self.response['response data'] = self.raw_response_list[i:]
 
