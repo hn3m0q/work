@@ -662,7 +662,7 @@ class MCTPWrapper():
 
 
 
-    def parse_mctp_ncsi(self):
+    def parse_mctp_pldm(self):
         self.response = dict()
 
         # get raw reponse line
