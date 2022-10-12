@@ -485,6 +485,11 @@ class MCTPWrapper():
             self.sent['dst_eid'] = self.dst_eid
             self.sent['msg_type'] = self.msg_type
             self.sent['payload'] = self.payload
+        elif self.msg_type_str ==  'PLDM':
+            self.sent['bus'] = self.bus
+            self.sent['dst_eid'] = self.dst_eid
+            self.sent['msg_type'] = self.msg_type
+            self.sent['payload'] = self.payload
 
         self.pretty(self.sent)
 
