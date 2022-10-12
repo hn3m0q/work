@@ -331,6 +331,7 @@ class MCTPWrapper():
                                     'PacketType', 'Channel']
 
         self.mctp_fixed_val_keys = ['src_eid', 'tag', 'msg_type', 'Rq[7] D[6] IID[4:0]', 'command code', 'completion code']
+        self.pldm_fixed_val_keys = ['src_eid', 'tag', 'msg_type', 'Rq[7] D[6] IID[4:0]', 'Hdr[7:6], Type[5:0]', 'command code', 'completion code']
 
         self.response = dict()
         self.raw_response = None
@@ -588,6 +589,8 @@ class MCTPWrapper():
                 print("Running NCSI Example:", self.mctp_cmdstring)
             elif self.msg_type_str == 'MCTP' and self.mctp_cmdstring in self.mctp_commands:
                 print("Running MCTP Example:", self.mctp_cmdstring)
+            elif self.msg_type_str == 'PLDM' and self.mctp_cmdstring in self.pldm_commands:
+                print("Running PLDM Example:", self.mctp_cmdstring)
 
             print("Excuting: " + " ".join(cmd))
             print("Command sent:")
