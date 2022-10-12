@@ -224,7 +224,7 @@ class SMBusWrapper():
         self.cmd.append(self.bus)
 
         if self.smbus_cmdstring:
-            print(self.smbus_cmdstring)
+            print("Running SMBus CMD string:", self.smbus_cmdstring)
             self.cmd.extend(self.cmd_string_map()[self.smbus_cmdstring])
             if self.verbose:
                 print(' '.join(self.cmd))
