@@ -430,21 +430,21 @@ class MCTPWrapper():
 
         '''
         # clear intial state for all channels to be tested.
-        self.run(ncsi_cmdstring='clear initial state', channel_id=0)
-        self.run(ncsi_cmdstring='clear initial state', channel_id=1)
-        self.run(ncsi_cmdstring='clear initial state', channel_id=2)
-        self.run(ncsi_cmdstring='clear initial state', channel_id=3)
-        self.run(ncsi_cmdstring='clear initial state', channel_id=0x1f)
+        self.run(mctp_cmdstring='clear initial state', channel_id=0)
+        self.run(mctp_cmdstring='clear initial state', channel_id=1)
+        self.run(mctp_cmdstring='clear initial state', channel_id=2)
+        self.run(mctp_cmdstring='clear initial state', channel_id=3)
+        self.run(mctp_cmdstring='clear initial state', channel_id=0x1f)
 
         args.pop('test')
         for cmd in self.ncsi_commands:
-            args['ncsi_cmdstring'] = cmd
+            args['mctp_cmdstring'] = cmd
 
             self.run(**args)
 
             # after reset channel, clear intial state must be called
             if cmd == 'reset channel':
-                self.run(ncsi_cmdstring='clear initial state')
+                self.run(mctp_cmdstring='clear initial state')
 
 
     def prep_ncsi_header(self):
@@ -500,7 +500,7 @@ class MCTPWrapper():
 
     def run(self, verbose=True, bus=3, dst_eid=0, msg_type='NCSI', cml_decode_response=True,
             slave_addr=0x55, mc_id=0, hrd_rv=1, iid=1, command=0, channel_id=0, pay_len=0,
-            payload=None, ncsi_cmdstring=None):
+            payload=None, mctp_cmdstring=None):
         self.verbose             = verbose
 
         self.cml_decode_response = cml_decode_response
@@ -519,18 +519,18 @@ class MCTPWrapper():
         self.pay_len             = pay_len
 
 
-        self.ncsi_cmdstring = ncsi_cmdstring
+        self.mctp_cmdstring = mctp_cmdstring
 
         # override variables if cmdstring is defined
-        if self.msg_type == 'NCSI' and self.ncsi_cmdstring in self.ncsi_commands:
-            for k in self.ncsi_commands[self.ncsi_cmdstring]:
-                setattr(self, k, self.ncsi_commands[self.ncsi_cmdstring][k])
-        elif self.msg_type == 'MCTP' and self.ncsi_cmdstring in self.mctp_commands:
-            for k in self.mctp_commands[self.ncsi_cmdstring]:
-                setattr(self, k, self.mctp_commands[self.ncsi_cmdstring][k])
-        elif self.msg_type == 'PLDM' and self.ncsi_cmdstring in self.pldm_commands:
-            for k in self.pldm_commands[self.ncsi_cmdstring]:
-                setattr(self, k, self.pldm_commands[self.ncsi_cmdstring][k])
+        if self.msg_type == 'NCSI' and self.mctp_cmdstring in self.ncsi_commands:
+            for k in self.ncsi_commands[self.mctp_cmdstring]:
+                setattr(self, k, self.ncsi_commands[self.mctp_cmdstring][k])
+        elif self.msg_type == 'MCTP' and self.mctp_cmdstring in self.mctp_commands:
+            for k in self.mctp_commands[self.mctp_cmdstring]:
+                setattr(self, k, self.mctp_commands[self.mctp_cmdstring][k])
+        elif self.msg_type == 'PLDM' and self.mctp_cmdstring in self.pldm_commands:
+            for k in self.pldm_commands[self.mctp_cmdstring]:
+                setattr(self, k, self.pldm_commands[self.mctp_cmdstring][k])
 
         # all self attrs are string based for subprocess.run(), multi-byte attrs are list of strings
         self.stringfy()
@@ -584,10 +584,10 @@ class MCTPWrapper():
         if verbose:
             print()
 
-            if self.msg_type_str == 'NCSI' and self.ncsi_cmdstring in self.ncsi_commands:
-                print("Running NCSI Example:", self.ncsi_cmdstring)
-            elif self.msg_type_str == 'MCTP' and self.ncsi_cmdstring in self.mctp_commands:
-                print("Running MCTP Example:", self.ncsi_cmdstring)
+            if self.msg_type_str == 'NCSI' and self.mctp_cmdstring in self.ncsi_commands:
+                print("Running NCSI Example:", self.mctp_cmdstring)
+            elif self.msg_type_str == 'MCTP' and self.mctp_cmdstring in self.mctp_commands:
+                print("Running MCTP Example:", self.mctp_cmdstring)
 
             print("Excuting: " + " ".join(cmd))
             print("Command sent:")
@@ -641,10 +641,10 @@ class MCTPWrapper():
         self.response['ResponseReason'] = self.raw_response_list[i+12:i+14]
         self.response['Payload'] = self.raw_response_list[i+14:]
 
-        if self.ncsi_cmdstring in self.ncsi_res_parser:
+        if self.mctp_cmdstring in self.ncsi_res_parser:
             self.response['NCSI Payload Parser'] = dict()
 
-            for k, v in self.ncsi_res_parser[self.ncsi_cmdstring].items():
+            for k, v in self.ncsi_res_parser[self.mctp_cmdstring].items():
                 parse_string = False
                 if type(v) is str:
                     parse_string = True
@@ -708,7 +708,7 @@ if __name__ == "__main__":
         parser.add_argument('--channel_id', help='', type=int, default=0, required=False)
         parser.add_argument('--pay_len', help='', type=int, default=0, required=False)
         parser.add_argument('--payload', help='', type=str, default=None, required=False)
-        parser.add_argument('--ncsi_cmdstring', help='A NCSI command string that fills values automatically',
+        parser.add_argument('--mctp_cmdstring', help='An MCTP command string that fills values automatically',
                             type=str, required=False)
 
     if sys.argv[sys.argv.index('-w') + 1] == 'SMBus':
